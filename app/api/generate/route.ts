@@ -40,11 +40,8 @@ export async function POST(req: NextRequest) {
 		console.log('[generate] Prompt length:', prompt.length);
 
 		const genAI = new GoogleGenerativeAI(apiKey);
-		// Try likely model ids for Gemini 2.5 Flash Image. Fall back gracefully.
-		const candidateModels = [
-			'gemini-2.5-flash-image',
-			'gemini-2.5-flash',
-		];
+		// Prefer dedicated image model first; keep a minimal fallback.
+		const candidateModels = ['gemini-2.5-flash-image', 'gemini-2.5-flash'];
 
 		let dataUrl: string | null = null;
 		let lastError: unknown = null;
@@ -53,13 +50,9 @@ export async function POST(req: NextRequest) {
 			try {
 				console.log('[generate] Trying model:', modelId);
 				const model = genAI.getGenerativeModel({ model: modelId as any });
-				// Request an image response; prefer responseModalities for new API surfaces.
+				// Keep request minimal; some endpoints reject unknown fields.
 				const result = await model.generateContent({
 					contents: [{ role: 'user', parts: [{ text: prompt }] }],
-					// @ts-ignore - pass both camelCase and snake_case to maximize compatibility
-					responseModalities: ['IMAGE'],
-					// @ts-ignore
-					response_modalities: ['IMAGE'],
 				} as any);
 				const response = (result as any).response ?? (await (result as any).response);
 				const candidates = (response?.candidates ?? []) as any[];
