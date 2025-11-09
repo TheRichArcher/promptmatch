@@ -35,11 +35,16 @@ export async function POST(req: NextRequest) {
 			return new Response(JSON.stringify({ error: 'Missing GOOGLE_API_KEY server configuration' }), { status: 500 });
 		}
 
+		console.log('[generate] Incoming request');
+		// Lightly redact prompt length to avoid logging PII content
+		console.log('[generate] Prompt length:', prompt.length);
+
 		const genAI = new GoogleGenerativeAI(apiKey);
 		// Try likely model ids for Gemini 2.5 Flash Image. Fall back gracefully.
 		const candidateModels = [
 			'gemini-2.5-flash-image',
 			'gemini-2.5-flash',
+			'gemini-2.5-flash-exp',
 			'gemini-1.5-flash',
 		];
 
@@ -48,6 +53,7 @@ export async function POST(req: NextRequest) {
 
 		for (const modelId of candidateModels) {
 			try {
+				console.log('[generate] Trying model:', modelId);
 				const model = genAI.getGenerativeModel({ model: modelId as any });
 				// Request an image response; SDKs differ in naming, so pass both hints.
 				const result = await model.generateContent({
@@ -55,12 +61,14 @@ export async function POST(req: NextRequest) {
 					// @ts-ignore - some SDK versions accept responseMimeType
 					generationConfig: { responseMimeType: 'image/png', response_mime_type: 'image/png' },
 				} as any);
-				const response = await (result as any).response;
+				const response = (result as any).response ?? (await (result as any).response);
 				const candidates = (response?.candidates ?? []) as any[];
+				console.log('[generate] Candidates count:', candidates?.length ?? 0);
 				for (const c of candidates) {
 					const parts = c?.content?.parts ?? [];
 					const maybe = extractImageDataUrl(parts);
 					if (maybe) {
+						console.log('[generate] Found inline image data in candidates');
 						dataUrl = maybe;
 						break;
 					}
@@ -69,10 +77,15 @@ export async function POST(req: NextRequest) {
 				// Some SDKs return inline data on response.promptFeedback or top-level—scan conservatively
 				const topLevelParts = (response?.parts ?? []) as any[];
 				dataUrl = extractImageDataUrl(topLevelParts);
-				if (dataUrl) break;
-				lastError = new Error('No image data returned by model');
+				if (dataUrl) {
+					console.log('[generate] Found inline image data at top-level parts');
+					break;
+				}
+				lastError = new Error('No image data returned by model response');
+				console.warn('[generate] No image data for model:', modelId);
 			} catch (e) {
 				lastError = e;
+				console.error('[generate] Model attempt failed:', modelId, (e as any)?.message ?? e);
 				continue;
 			}
 		}
@@ -80,6 +93,7 @@ export async function POST(req: NextRequest) {
 		if (!dataUrl) {
 			const message =
 				lastError instanceof Error ? lastError.message : 'Failed to generate image';
+			console.error('[generate] All model attempts failed:', message);
 			return new Response(JSON.stringify({ error: message }), { status: 502 });
 		}
 
@@ -88,6 +102,7 @@ export async function POST(req: NextRequest) {
 			headers: { 'Content-Type': 'application/json' },
 		});
 	} catch (err: any) {
+		console.error('[generate] Unhandled error:', err?.message ?? err);
 		return new Response(JSON.stringify({ error: err?.message ?? 'Unknown error' }), { status: 500 });
 	}
 }
