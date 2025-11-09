@@ -44,8 +44,6 @@ export async function POST(req: NextRequest) {
 		const candidateModels = [
 			'gemini-2.5-flash-image',
 			'gemini-2.5-flash',
-			'gemini-2.5-flash-exp',
-			'gemini-1.5-flash',
 		];
 
 		let dataUrl: string | null = null;
@@ -55,11 +53,13 @@ export async function POST(req: NextRequest) {
 			try {
 				console.log('[generate] Trying model:', modelId);
 				const model = genAI.getGenerativeModel({ model: modelId as any });
-				// Request an image response; SDKs differ in naming, so pass both hints.
+				// Request an image response; prefer responseModalities for new API surfaces.
 				const result = await model.generateContent({
 					contents: [{ role: 'user', parts: [{ text: prompt }] }],
-					// @ts-ignore - some SDK versions accept responseMimeType
-					generationConfig: { responseMimeType: 'image/png', response_mime_type: 'image/png' },
+					// @ts-ignore - pass both camelCase and snake_case to maximize compatibility
+					responseModalities: ['IMAGE'],
+					// @ts-ignore
+					response_modalities: ['IMAGE'],
 				} as any);
 				const response = (result as any).response ?? (await (result as any).response);
 				const candidates = (response?.candidates ?? []) as any[];
