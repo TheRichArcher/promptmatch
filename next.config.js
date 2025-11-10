@@ -1,3 +1,4 @@
+const path = require('path');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -11,6 +12,13 @@ const nextConfig = {
         hostname: '**'
       }
     ]
+  },
+  webpack: (config) => {
+    // Ensure @/* alias resolves to project root in all environments
+    config.resolve = config.resolve || {};
+    config.resolve.alias = config.resolve.alias || {};
+    config.resolve.alias['@'] = path.resolve(__dirname);
+    return config;
   }
 };
 
