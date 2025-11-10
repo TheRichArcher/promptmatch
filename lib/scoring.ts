@@ -118,7 +118,7 @@ export async function embeddingSimilarityForImages({
 	// Vertex AI batchEmbedContents endpoint for multimodalembedding@001.
 	// We'll call it twice (one per image) with requests/content/image/bytesBase64Encoded.
 	const url =
-		'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0057033292/locations/us-central1/models/multimodalembedding@001:batchEmbedContents';
+		'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0057033292/locations/us-central1/publishers/google/models/multimodalembedding@001:batchEmbedContents';
 	// Require OAuth token via GOOGLE_APPLICATION_CREDENTIALS_JSON
 	const accessToken = await getGoogleAccessTokenFromEnv();
 	if (!accessToken) {
@@ -155,16 +155,10 @@ export async function embeddingSimilarityForImages({
 		}
 		const json: any = await res.json();
 		// Handle both possible structures:
-		// - responses[0].embedding.values (preferred)
-		// - responses[0].embedding (already the values array)
-		const responses = json?.responses ?? json?.data?.responses;
-		const first = responses?.[0];
-		const embedding = first?.embedding;
-		const values: number[] | undefined =
-			(Array.isArray(embedding?.values) ? embedding.values : undefined) ??
-			(Array.isArray(embedding) ? (embedding as number[]) : undefined);
+		// Parse vectors from response.data.responses[0].embedding.values
+		const values: number[] | undefined = json?.data?.responses?.[0]?.embedding?.values;
 		if (!Array.isArray(values)) {
-			throw new Error('vertex multimodalembedding: missing responses[0].embedding.values');
+			throw new Error('vertex multimodalembedding: missing response.data.responses[0].embedding.values');
 		}
 		return values;
 	}
