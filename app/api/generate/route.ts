@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 
 type ImagePart = {
 	inlineData?: { data?: string; mimeType?: string };
@@ -30,70 +31,91 @@ export async function POST(req: NextRequest) {
 			return new Response(JSON.stringify({ error: 'Missing prompt' }), { status: 400 });
 		}
 
-		const apiKey = process.env.GOOGLE_API_KEY;
-		if (!apiKey) {
-			return new Response(JSON.stringify({ error: 'Missing GOOGLE_API_KEY server configuration' }), { status: 500 });
-		}
-
-		console.log('[generate] Incoming request');
-		// Lightly redact prompt length to avoid logging PII content
+		console.log('[generate] Incoming request (OpenAI primary)');
 		console.log('[generate] Prompt length:', prompt.length);
 
-		const genAI = new GoogleGenerativeAI(apiKey);
-		// Prefer dedicated image model first; keep a minimal fallback.
-		const candidateModels = ['gemini-2.5-flash-image', 'gemini-2.5-flash'];
+		// 1) Try OpenAI (primary)
+		const openaiKey = process.env.OPENAI_API_KEY;
+		if (openaiKey) {
+			try {
+				const openai = new OpenAI({ apiKey: openaiKey });
+				const img = await openai.images.generate({
+					model: 'gpt-image-1',
+					prompt,
+					size: '512x512',
+					quality: 'standard',
+					response_format: 'b64_json',
+				});
+				const b64 = img.data?.[0]?.b64_json;
+				if (b64) {
+					const dataUrl = `data:image/png;base64,${b64}`;
+					return new Response(JSON.stringify({ image: dataUrl, imageDataUrl: dataUrl, provider: 'openai' }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' },
+					});
+				}
+				console.warn('[generate] OpenAI returned no b64_json');
+			} catch (e: any) {
+				console.error('[generate] OpenAI error:', e?.message ?? e);
+			}
+		} else {
+			console.warn('[generate] OPENAI_API_KEY not set, skipping OpenAI generation');
+		}
 
+		// 2) Fallback to Gemini if available
+		const googleKey = process.env.GOOGLE_API_KEY;
 		let dataUrl: string | null = null;
 		let lastError: unknown = null;
-
-		for (const modelId of candidateModels) {
-			try {
-				console.log('[generate] Trying model:', modelId);
-				const model = genAI.getGenerativeModel({ model: modelId as any });
-				// Keep request minimal; some endpoints reject unknown fields.
-				const result = await model.generateContent({
-					contents: [{ role: 'user', parts: [{ text: prompt }] }],
-				} as any);
-				const response = (result as any).response ?? (await (result as any).response);
-				const candidates = (response?.candidates ?? []) as any[];
-				console.log('[generate] Candidates count:', candidates?.length ?? 0);
-				for (const c of candidates) {
-					const parts = c?.content?.parts ?? [];
-					const maybe = extractImageDataUrl(parts);
-					if (maybe) {
-						console.log('[generate] Found inline image data in candidates');
-						dataUrl = maybe;
+		if (googleKey) {
+			const genAI = new GoogleGenerativeAI(googleKey);
+			const candidateModels = ['gemini-2.5-flash-image', 'gemini-2.5-flash'];
+			for (const modelId of candidateModels) {
+				try {
+					console.log('[generate] Trying Gemini model:', modelId);
+					const model = genAI.getGenerativeModel({ model: modelId as any });
+					const result = await model.generateContent({
+						contents: [{ role: 'user', parts: [{ text: prompt }] }],
+					} as any);
+					const response = (result as any).response ?? (await (result as any).response);
+					const candidates = (response?.candidates ?? []) as any[];
+					console.log('[generate] Gemini candidates count:', candidates?.length ?? 0);
+					for (const c of candidates) {
+						const parts = c?.content?.parts ?? [];
+						const maybe = extractImageDataUrl(parts);
+						if (maybe) {
+							console.log('[generate] Found inline image data in candidates');
+							dataUrl = maybe;
+							break;
+						}
+					}
+					if (dataUrl) break;
+					const topLevelParts = (response?.parts ?? []) as any[];
+					dataUrl = extractImageDataUrl(topLevelParts);
+					if (dataUrl) {
+						console.log('[generate] Found inline image data at top-level parts');
 						break;
 					}
+					lastError = new Error('No image data returned by model response');
+					console.warn('[generate] No image data for model:', modelId);
+				} catch (e) {
+					lastError = e;
+					console.error('[generate] Gemini model attempt failed:', modelId, (e as any)?.message ?? e);
+					continue;
 				}
-				if (dataUrl) break;
-				// Some SDKs return inline data on response.promptFeedback or top-level—scan conservatively
-				const topLevelParts = (response?.parts ?? []) as any[];
-				dataUrl = extractImageDataUrl(topLevelParts);
-				if (dataUrl) {
-					console.log('[generate] Found inline image data at top-level parts');
-					break;
-				}
-				lastError = new Error('No image data returned by model response');
-				console.warn('[generate] No image data for model:', modelId);
-			} catch (e) {
-				lastError = e;
-				console.error('[generate] Model attempt failed:', modelId, (e as any)?.message ?? e);
-				continue;
 			}
+			if (dataUrl) {
+				return new Response(JSON.stringify({ image: dataUrl, imageDataUrl: dataUrl, provider: 'gemini' }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			const message = lastError instanceof Error ? lastError.message : 'Failed to generate image';
+			console.error('[generate] All Gemini attempts failed:', message);
+		} else {
+			console.warn('[generate] GOOGLE_API_KEY not set; Gemini fallback unavailable');
 		}
 
-		if (!dataUrl) {
-			const message =
-				lastError instanceof Error ? lastError.message : 'Failed to generate image';
-			console.error('[generate] All model attempts failed:', message);
-			return new Response(JSON.stringify({ error: message }), { status: 502 });
-		}
-
-		return new Response(JSON.stringify({ image: dataUrl, imageDataUrl: dataUrl }), {
-			status: 200,
-			headers: { 'Content-Type': 'application/json' },
-		});
+		return new Response(JSON.stringify({ error: 'Image generation unavailable. Set OPENAI_API_KEY or GOOGLE_API_KEY.' }), { status: 502 });
 	} catch (err: any) {
 		console.error('[generate] Unhandled error:', err?.message ?? err);
 		return new Response(JSON.stringify({ error: err?.message ?? 'Unknown error' }), { status: 500 });
