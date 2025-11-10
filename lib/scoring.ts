@@ -91,4 +91,52 @@ export function computeFinalScore(similarity01: number, heuristicBonus: number):
 	return Math.max(0, Math.min(100, base + heuristicBonus));
 }
 
+export function parseDataUrl(dataUrl: string): { mime: string; base64: string } | null {
+	if (!dataUrl.startsWith('data:')) return null;
+	const firstComma = dataUrl.indexOf(',');
+	if (firstComma === -1) return null;
+	const header = dataUrl.substring(5, firstComma); // e.g., image/png;base64
+	const base64 = dataUrl.substring(firstComma + 1);
+	const mime = header.split(';')[0] || 'image/png';
+	return { mime, base64 };
+}
+
+export async function embeddingSimilarityForImages({
+	targetImageDataUrl,
+	generatedImageDataUrl,
+	apiKey,
+}: {
+	targetImageDataUrl: string;
+	generatedImageDataUrl: string;
+	apiKey?: string;
+}): Promise<number | null> {
+	if (!apiKey) return null;
+	const target = parseDataUrl(targetImageDataUrl);
+	const generated = parseDataUrl(generatedImageDataUrl);
+	if (!target || !generated) return null;
+	const genAI = new GoogleGenerativeAI(apiKey);
+	const model = genAI.getGenerativeModel({ model: 'multimodalembedding' as any });
+	const requests: EmbedContentRequest[] = [
+		{
+			// @ts-ignore
+			content: {
+				role: 'user',
+				parts: [{ inlineData: { mimeType: target.mime, data: target.base64 } }],
+			},
+		},
+		{
+			// @ts-ignore
+			content: {
+				role: 'user',
+				parts: [{ inlineData: { mimeType: generated.mime, data: generated.base64 } }],
+			},
+		},
+	];
+	const res = await model.batchEmbedContents({ requests } as any);
+	// @ts-ignore
+	const vectors: number[][] = res.embeddings.map((e: any) => e.values as number[]);
+	if (!vectors?.[0] || !vectors?.[1]) return null;
+	return cosineSimilarity(vectors[0], vectors[1]);
+}
+
 

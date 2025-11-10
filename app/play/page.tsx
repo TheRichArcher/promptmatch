@@ -26,6 +26,34 @@ export default function TrainingPage() {
 			setScore(null);
 			setLastPrompt(prompt);
 			try {
+				// Build a target image data URL from the level spec for image-based scoring
+				const targetImageDataUrl = (() => {
+					try {
+						const size = 256;
+						const canvas = document.createElement('canvas');
+						canvas.width = size;
+						canvas.height = size;
+						const ctx = canvas.getContext('2d');
+						if (!ctx) return null;
+						// background
+						ctx.fillStyle = level.spec.background;
+						ctx.fillRect(0, 0, size, size);
+						// shape
+						const s = level.spec.size === 'large' ? size * 0.5 : level.spec.size === 'medium' ? size * 0.35 : size * 0.2;
+						ctx.fillStyle = level.spec.color;
+						if (level.spec.shape === 'circle') {
+							ctx.beginPath();
+							ctx.arc(size / 2, size / 2, s / 2, 0, Math.PI * 2);
+							ctx.fill();
+						} else {
+							ctx.fillRect(size / 2 - s / 2, size / 2 - s / 2, s, s);
+						}
+						return canvas.toDataURL('image/png');
+					} catch {
+						return null;
+					}
+				})();
+
 				// 1) Generate image (stubbed unless Gemini image is configured)
 				const genResp = await fetch('/api/generate', {
 					method: 'POST',
@@ -36,13 +64,19 @@ export default function TrainingPage() {
 				if (!genResp.ok || genRes?.error) {
 					throw new Error(genRes?.error || 'Failed to generate image');
 				}
-				setGeneratedImage(genRes?.image || genRes?.imageUrl || genRes?.imageDataUrl || null);
+				const generatedDataUrl: string | null = genRes?.image || genRes?.imageUrl || genRes?.imageDataUrl || null;
+				setGeneratedImage(generatedDataUrl);
 
 				// 2) Score similarity using embeddings (if key) and heuristics
 				const scoreResp = await fetch('/api/score', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ prompt, targetDescription: level.description }),
+					body: JSON.stringify({
+						prompt,
+						targetDescription: level.description,
+						targetImage: targetImageDataUrl,
+						generatedImage: generatedDataUrl,
+					}),
 				});
 				const scoreRes: ScoreResponse = await scoreResp.json();
 				if (!scoreResp.ok || (scoreRes as any)?.error) {
