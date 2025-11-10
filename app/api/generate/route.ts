@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import OpenAI from 'openai';
 
 type ImagePart = {
 	inlineData?: { data?: string; mimeType?: string };
@@ -44,40 +43,63 @@ export async function POST(req: NextRequest) {
 		// 1) Try OpenAI (primary)
 		const openaiKey = process.env.OPENAI_API_KEY;
 		let openaiError: string | null = null;
+		let tryGeminiDueToOpenAI = false;
 		if (openaiKey) {
 			try {
-				const openai = new OpenAI({ apiKey: openaiKey });
-				const img = await openai.images.generate({
-					model: 'gpt-image-1',
-					prompt,
-					size: '512x512',
-					quality: 'standard',
+				const res = await fetch('https://api.openai.com/v1/images/generations', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Authorization: `Bearer ${openaiKey}`,
+					},
+					body: JSON.stringify({
+						model: 'gpt-image-1',
+						prompt,
+						size: '1024x1024',
+						quality: 'high', // valid: 'low' | 'medium' | 'high' | 'auto'
+					}),
 				});
-				const b64 = img.data?.[0]?.b64_json;
-				if (b64) {
-					const dataUrl = `data:image/png;base64,${b64}`;
-					return new Response(JSON.stringify({ image: dataUrl, imageDataUrl: dataUrl, provider: 'openai' }), {
-						status: 200,
-						headers: { 'Content-Type': 'application/json' },
-					});
+				const contentType = res.headers.get('content-type') ?? '';
+				const json = contentType.includes('application/json') ? await res.json() : null;
+
+				if (res.ok) {
+					const b64 = json?.data?.[0]?.b64_json;
+					if (b64) {
+						const dataUrl = `data:image/png;base64,${b64}`;
+						return new Response(JSON.stringify({ image: dataUrl, imageDataUrl: dataUrl, provider: 'openai' }), {
+							status: 200,
+							headers: { 'Content-Type': 'application/json' },
+						});
+					}
+					console.warn('[generate] OpenAI 200 but no b64_json in response');
+					openaiError = 'OpenAI success but no image data returned.';
+					// Do not fall back to Gemini on a 200 with malformed payload; return a clear error instead.
+				} else {
+					const msg = json?.error?.message || `OpenAI HTTP ${res.status}`;
+					openaiError = msg;
+					console.warn('[generate] OpenAI non-200:', res.status, msg);
+					// Only allow Gemini fallback on network/key/quota/server errors, not on 400 user errors
+					if (res.status === 401 || res.status === 403 || res.status === 429 || res.status >= 500) {
+						tryGeminiDueToOpenAI = true;
+					}
 				}
-				console.warn('[generate] OpenAI returned no b64_json');
-				openaiError = 'OpenAI returned no image (no b64_json).';
 			} catch (e: any) {
 				console.error('[generate] OpenAI error:', e?.message ?? e);
 				openaiError = e?.message ?? String(e);
+				tryGeminiDueToOpenAI = true; // network or unexpected error → allow fallback
 			}
 		} else {
 			console.warn('[generate] OPENAI_API_KEY not set, skipping OpenAI generation');
 			openaiError = 'OPENAI_API_KEY not set';
+			tryGeminiDueToOpenAI = true;
 		}
 
-		// 2) Fallback to Gemini if available
+		// 2) Fallback to Gemini if available AND allowed
 		const googleKey = process.env.GOOGLE_API_KEY;
 		let dataUrl: string | null = null;
 		let lastError: unknown = null;
 		let geminiError: string | null = null;
-		if (googleKey) {
+		if (tryGeminiDueToOpenAI && googleKey) {
 			const genAI = new GoogleGenerativeAI(googleKey);
 			const candidateModels = ['gemini-2.5-flash-image', 'gemini-2.5-flash'];
 			for (const modelId of candidateModels) {
@@ -124,6 +146,9 @@ export async function POST(req: NextRequest) {
 			const message = lastError instanceof Error ? lastError.message : 'Failed to generate image';
 			console.error('[generate] All Gemini attempts failed:', message);
 			geminiError = geminiError ?? message;
+		} else if (!tryGeminiDueToOpenAI) {
+			console.warn('[generate] Skipping Gemini fallback due to OpenAI 4xx client error.');
+			geminiError = 'Skipped fallback due to OpenAI client error (4xx).';
 		} else {
 			console.warn('[generate] GOOGLE_API_KEY not set; Gemini fallback unavailable');
 			geminiError = 'GOOGLE_API_KEY not set';
