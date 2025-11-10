@@ -114,29 +114,48 @@ export async function embeddingSimilarityForImages({
 	const target = parseDataUrl(targetImageDataUrl);
 	const generated = parseDataUrl(generatedImageDataUrl);
 	if (!target || !generated) return null;
-	const genAI = new GoogleGenerativeAI(apiKey);
-	const model = genAI.getGenerativeModel({ model: 'multimodalembedding' as any });
-	const requests: EmbedContentRequest[] = [
-		{
-			// @ts-ignore
-			content: {
-				role: 'user',
-				parts: [{ inlineData: { mimeType: target.mime, data: target.base64 } }],
+
+	// Use the public REST endpoint for embedding-001 batch image embedding
+	const url = `https://generativelanguage.googleapis.com/v1/models/embedding-001:batchEmbedContents?key=${encodeURIComponent(
+		apiKey,
+	)}`;
+	const payload = {
+		requests: [
+			{
+				model: 'models/embedding-001',
+				content: {
+					parts: [{ inline_data: { mime_type: target.mime, data: target.base64 } }],
+				},
 			},
-		},
-		{
-			// @ts-ignore
-			content: {
-				role: 'user',
-				parts: [{ inlineData: { mimeType: generated.mime, data: generated.base64 } }],
+			{
+				model: 'models/embedding-001',
+				content: {
+					parts: [{ inline_data: { mime_type: generated.mime, data: generated.base64 } }],
+				},
 			},
-		},
-	];
-	const res = await model.batchEmbedContents({ requests } as any);
-	// @ts-ignore
-	const vectors: number[][] = res.embeddings.map((e: any) => e.values as number[]);
-	if (!vectors?.[0] || !vectors?.[1]) return null;
-	return cosineSimilarity(vectors[0], vectors[1]);
+		],
+	};
+	const res = await fetch(url, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(payload),
+	});
+	if (!res.ok) {
+		// Let caller decide fallback; return null on error
+		return null;
+	}
+	const data: any = await res.json();
+	const embeddings = data?.embeddings;
+	if (!Array.isArray(embeddings) || embeddings.length < 2) return null;
+	const vec = (e: any): number[] | null => {
+		if (Array.isArray(e?.values)) return e.values as number[];
+		if (Array.isArray(e?.embedding?.values)) return e.embedding.values as number[];
+		return null;
+	};
+	const v0 = vec(embeddings[0]);
+	const v1 = vec(embeddings[1]);
+	if (!v0 || !v1) return null;
+	return cosineSimilarity(v0, v1);
 }
 
 
