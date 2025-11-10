@@ -138,10 +138,9 @@ export async function embeddingSimilarityForImages({
 						role: 'user',
 						parts: [
 							{
-								// Vertex publishers predict expects Gemini-style parts with inlineData
-								inlineData: {
-									mimeType: mime || 'image/png',
-									data: base64,
+								// Vertex expects Gemini-style parts; use image.bytesBase64Encoded
+								image: {
+									bytesBase64Encoded: base64,
 								},
 							},
 						],
