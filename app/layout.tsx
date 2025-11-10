@@ -11,6 +11,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
 	return (
 		<html lang="en">
+			<head>
+				<link rel="icon" href="/favicon.ico" />
+				<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+			</head>
 			<body className="min-h-screen antialiased">
 				<div className="mx-auto max-w-6xl px-4 py-6">
 					<header className="mb-6 flex items-center justify-between">
