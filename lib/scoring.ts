@@ -134,15 +134,8 @@ export async function embeddingSimilarityForImages({
 		const body = {
 			instances: [
 				{
-					content: {
-						role: 'user',
-						parts: [
-							{
-								image: {
-									bytesBase64Encoded: base64,
-								},
-							},
-						],
+					image: {
+						bytesBase64Encoded: base64,
 					},
 				},
 			],
@@ -158,10 +151,7 @@ export async function embeddingSimilarityForImages({
 		}
 		const json: any = await res.json();
 		// Parse vectors from predictions[0].embeddings.values (publisher predict format)
-		const values: number[] | undefined =
-			json?.predictions?.[0]?.embeddings?.values ??
-			json?.predictions?.[0]?.embeddings?.[0]?.values ??
-			json?.data?.predictions?.[0]?.embeddings?.values;
+		const values: number[] | undefined = json?.predictions?.[0]?.embeddings?.values;
 		if (!Array.isArray(values)) {
 			throw new Error('vertex multimodalembedding: missing predictions[0].embeddings.values');
 		}
