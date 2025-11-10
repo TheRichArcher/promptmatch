@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
 
 		// 1) Try OpenAI (primary)
 		const openaiKey = process.env.OPENAI_API_KEY;
+		let openaiError: string | null = null;
 		if (openaiKey) {
 			try {
 				const openai = new OpenAI({ apiKey: openaiKey });
@@ -55,17 +56,21 @@ export async function POST(req: NextRequest) {
 					});
 				}
 				console.warn('[generate] OpenAI returned no b64_json');
+				openaiError = 'OpenAI returned no image (no b64_json).';
 			} catch (e: any) {
 				console.error('[generate] OpenAI error:', e?.message ?? e);
+				openaiError = e?.message ?? String(e);
 			}
 		} else {
 			console.warn('[generate] OPENAI_API_KEY not set, skipping OpenAI generation');
+			openaiError = 'OPENAI_API_KEY not set';
 		}
 
 		// 2) Fallback to Gemini if available
 		const googleKey = process.env.GOOGLE_API_KEY;
 		let dataUrl: string | null = null;
 		let lastError: unknown = null;
+		let geminiError: string | null = null;
 		if (googleKey) {
 			const genAI = new GoogleGenerativeAI(googleKey);
 			const candidateModels = ['gemini-2.5-flash-image', 'gemini-2.5-flash'];
@@ -100,6 +105,7 @@ export async function POST(req: NextRequest) {
 				} catch (e) {
 					lastError = e;
 					console.error('[generate] Gemini model attempt failed:', modelId, (e as any)?.message ?? e);
+					geminiError = (e as any)?.message ?? String(e);
 					continue;
 				}
 			}
@@ -111,11 +117,16 @@ export async function POST(req: NextRequest) {
 			}
 			const message = lastError instanceof Error ? lastError.message : 'Failed to generate image';
 			console.error('[generate] All Gemini attempts failed:', message);
+			geminiError = geminiError ?? message;
 		} else {
 			console.warn('[generate] GOOGLE_API_KEY not set; Gemini fallback unavailable');
+			geminiError = 'GOOGLE_API_KEY not set';
 		}
 
-		return new Response(JSON.stringify({ error: 'Image generation unavailable. Set OPENAI_API_KEY or GOOGLE_API_KEY.' }), { status: 502 });
+		return new Response(JSON.stringify({
+			error: 'Image generation unavailable. Set OPENAI_API_KEY or GOOGLE_API_KEY.',
+			details: { openaiError, geminiError }
+		}), { status: 502, headers: { 'Content-Type': 'application/json' } });
 	} catch (err: any) {
 		console.error('[generate] Unhandled error:', err?.message ?? err);
 		return new Response(JSON.stringify({ error: err?.message ?? 'Unknown error' }), { status: 500 });
