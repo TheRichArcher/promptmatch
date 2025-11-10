@@ -14,6 +14,7 @@ export default function RootLayout({
 			<head>
 				<link rel="icon" href="/favicon.ico" />
 				<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+				<link rel="icon" href="/ChatGPT%20Image%20Nov%209,%202025,%2009_54_33%20PM.png" type="image/png" />
 			</head>
 			<body className="min-h-screen antialiased">
 				<div className="mx-auto max-w-6xl px-4 py-6">
