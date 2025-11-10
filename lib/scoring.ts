@@ -130,7 +130,7 @@ export async function embeddingSimilarityForImages({
 		Authorization: `Bearer ${accessToken}`,
 	};
 
-	async function getVector(base64: string): Promise<number[]> {
+	async function getVector(base64: string, mime: string): Promise<number[]> {
 		const body = {
 			instances: [
 				{
@@ -140,7 +140,7 @@ export async function embeddingSimilarityForImages({
 							{
 								// Vertex publishers predict expects Gemini-style parts with inlineData
 								inlineData: {
-									mimeType: target.mime || 'image/png',
+									mimeType: mime || 'image/png',
 									data: base64,
 								},
 							},
@@ -169,8 +169,8 @@ export async function embeddingSimilarityForImages({
 		return values;
 	}
 
-	const v0 = await getVector(target.base64);
-	const v1 = await getVector(generated.base64);
+	const v0 = await getVector(target.base64, target.mime);
+	const v1 = await getVector(generated.base64, generated.mime);
 	return cosineSimilarity(v0, v1);
 }
 
