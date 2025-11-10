@@ -115,10 +115,8 @@ export async function embeddingSimilarityForImages({
 	const generated = parseDataUrl(generatedImageDataUrl);
 	if (!target || !generated) return null;
 
-	// Use the public REST endpoint for embedding-001 batch image embedding
-	const url = `https://generativelanguage.googleapis.com/v1/models/embedding-001:batchEmbedContents?key=${encodeURIComponent(
-		apiKey,
-	)}`;
+	// Use the public REST endpoint for embedding-001 batch image embedding with Bearer auth
+	const url = 'https://generativelanguage.googleapis.com/v1/models/embedding-001:batchEmbedContents';
 	const payload = {
 		requests: [
 			{
@@ -137,15 +135,21 @@ export async function embeddingSimilarityForImages({
 	};
 	const res = await fetch(url, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${apiKey}`,
+		},
 		body: JSON.stringify(payload),
 	});
 	if (!res.ok) {
-		// Let caller decide fallback; return null on error
-		return null;
+		// Surface error so caller can record errorMessage and fallback accordingly
+		const text = await res.text();
+		throw new Error(`embedding-001 ${res.status}: ${text}`);
 	}
 	const data: any = await res.json();
-	const embeddings = data?.embeddings;
+	// Some SDKs wrap JSON as {data: {...}}; support both
+	const root = data?.data?.embeddings ? data.data : data;
+	const embeddings = root?.embeddings;
 	if (!Array.isArray(embeddings) || embeddings.length < 2) return null;
 	const vec = (e: any): number[] | null => {
 		if (Array.isArray(e?.values)) return e.values as number[];
