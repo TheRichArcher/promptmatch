@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 
@@ -29,6 +29,13 @@ export async function POST(req: NextRequest) {
 		const prompt = String(body?.prompt ?? '');
 		if (!prompt) {
 			return new Response(JSON.stringify({ error: 'Missing prompt' }), { status: 400 });
+		}
+
+		// Runtime key presence check (no build-time/env caching)
+		const hasOpenAI = Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.length > 0);
+		const hasGoogle = Boolean(process.env.GOOGLE_API_KEY && process.env.GOOGLE_API_KEY.length > 0);
+		if (!hasOpenAI && !hasGoogle) {
+			return NextResponse.json({ error: 'No API key available' }, { status: 500 });
 		}
 
 		console.log('[generate] Incoming request (OpenAI primary)');
