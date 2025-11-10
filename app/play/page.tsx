@@ -81,11 +81,7 @@ export default function TrainingPage() {
 				</div>
 				<div className="card p-4">
 					<h2 className="mb-3 text-lg font-semibold">Your Result</h2>
-					<CanvasPreview
-						imageDataUrl={generatedImage}
-						spec={!generatedImage ? { ...level.spec } : undefined}
-						label={generatedImage ? 'Your Image' : undefined}
-					/>
+					<CanvasPreview imageDataUrl={generatedImage} label={generatedImage ? 'Your Image' : undefined} />
 					<div className="mt-3">
 						<PromptInput onSubmit={onSubmit} isGenerating={isLoading} />
 					</div>
