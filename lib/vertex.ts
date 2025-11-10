@@ -207,6 +207,11 @@ export async function embedImageBase64(dataUrlOrBase64: string): Promise<number[
 	return vec;
 }
 
+// Convenience alias to match expected import name in tests
+export async function embedImagesBase64(dataUrlsOrBase64: string[]): Promise<number[][]> {
+	return embedImagesBase64Batch(dataUrlsOrBase64);
+}
+
 export function cosineSimilarity(a: number[], b: number[]) {
 	if (!a?.length || !b?.length || a.length !== b.length) return 0;
 	let dot = 0,
