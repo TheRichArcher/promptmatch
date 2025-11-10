@@ -29,47 +29,52 @@ export async function POST(req: NextRequest) {
 			return NextResponse.json({ error: 'Missing prompt' }, { status: 400 });
 		}
 
-		if (!process.env.OPENAI_API_KEY) {
-			console.error('[generate] Missing OPENAI_API_KEY');
+		if (!process.env.GOOGLE_API_KEY) {
+			console.error('[generate] Missing GOOGLE_API_KEY');
 			return NextResponse.json({ error: 'Missing API key' }, { status: 500 });
 		}
 
-		console.log('[generate] OpenAI images request');
-		const res = await fetch('https://api.openai.com/v1/images/generations', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-			},
-			body: JSON.stringify({
-				model: 'gpt-image-1',
-				prompt,
-				size: '1024x1024',
-				quality: 'high',
-			}),
-		});
+		console.log('[generate] Gemini images request');
+		const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY as string);
+		const candidateModels = ['gemini-2.5-flash-image', 'gemini-2.5-flash'];
 
-		const text = await res.text();
-		if (!res.ok) {
-			console.error('[generate] OpenAI error:', text);
-			return NextResponse.json({ error: 'OpenAI request failed', details: text }, { status: res.status });
+		let dataUrl: string | null = null;
+		let lastError: unknown = null;
+		for (const modelId of candidateModels) {
+			try {
+				console.log('[generate] Trying model:', modelId);
+				const model = genAI.getGenerativeModel({ model: modelId as any });
+				const result = await model.generateContent({
+					contents: [{ role: 'user', parts: [{ text: prompt }] }],
+				} as any);
+				const response = (result as any).response ?? (await (result as any).response);
+				const candidates = (response?.candidates ?? []) as any[];
+				for (const c of candidates) {
+					const parts = c?.content?.parts ?? [];
+					const maybe = extractImageDataUrl(parts);
+					if (maybe) {
+						dataUrl = maybe;
+						break;
+					}
+				}
+				if (dataUrl) break;
+				const topLevelParts = (response?.parts ?? []) as any[];
+				dataUrl = extractImageDataUrl(topLevelParts);
+				if (dataUrl) break;
+				lastError = new Error('No image data returned by model response');
+			} catch (e) {
+				lastError = e;
+				console.error('[generate] Gemini error for model', modelId, (e as any)?.message ?? e);
+				continue;
+			}
 		}
 
-		let data: any = null;
-		try {
-			data = JSON.parse(text);
-		} catch {
-			console.error('[generate] Non-JSON success response from OpenAI');
-			return NextResponse.json({ error: 'Unexpected response from OpenAI', details: text }, { status: 502 });
+		if (!dataUrl) {
+			const message = lastError instanceof Error ? lastError.message : 'Failed to generate image';
+			return NextResponse.json({ error: 'Gemini request failed', details: message }, { status: 502 });
 		}
 
-		const base64 = data?.data?.[0]?.b64_json;
-		if (!base64) {
-			return NextResponse.json({ error: 'No image data returned', details: data }, { status: 502 });
-		}
-
-		const dataUrl = `data:image/png;base64,${base64}`;
-		return NextResponse.json({ image: dataUrl, imageDataUrl: dataUrl, provider: 'openai' }, { status: 200 });
+		return NextResponse.json({ image: dataUrl, imageDataUrl: dataUrl, provider: 'gemini' }, { status: 200 });
 	} catch (err: any) {
 		console.error('[generate] Unhandled error:', err?.message ?? err);
 		return NextResponse.json({ error: 'Internal error', details: String(err) }, { status: 500 });
