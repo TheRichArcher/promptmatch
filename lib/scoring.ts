@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, type EmbedContentRequest } from '@google/generative-ai';
+import { getGoogleAccessTokenFromEnv } from './googleAuth';
 
 export type SimilarityBreakdown = {
 	cosineSimilarity?: number;
@@ -110,7 +111,6 @@ export async function embeddingSimilarityForImages({
 	generatedImageDataUrl: string;
 	apiKey?: string;
 }): Promise<number | null> {
-	if (!apiKey) return null;
 	const target = parseDataUrl(targetImageDataUrl);
 	const generated = parseDataUrl(generatedImageDataUrl);
 	if (!target || !generated) return null;
@@ -133,12 +133,16 @@ export async function embeddingSimilarityForImages({
 			},
 		],
 	};
-	const res = await fetch(url, {
+	// Prefer service-account OAuth if provided; otherwise fall back to API key via query param
+	const accessToken = await getGoogleAccessTokenFromEnv();
+	const finalUrl =
+		accessToken || !apiKey ? url : `${url}?key=${encodeURIComponent(apiKey)}`;
+	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+	if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+	const res = await fetch(finalUrl, {
 		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${apiKey}`,
-		},
+		headers,
 		body: JSON.stringify(payload),
 	});
 	if (!res.ok) {
