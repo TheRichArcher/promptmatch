@@ -115,10 +115,10 @@ export async function embeddingSimilarityForImages({
 	const generated = parseDataUrl(generatedImageDataUrl);
 	if (!target || !generated) return null;
 
-	// Vertex AI batchEmbedContents endpoint for multimodalembedding@001.
-	// We'll call it twice (one per image) with requests/content/image/bytesBase64Encoded.
+	// Vertex AI predict endpoint for multimodalembedding.
+	// We'll call it twice (one per image) with instances/content/image/bytesBase64Encoded.
 	const url =
-		'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0057033292/locations/us-central1/publishers/google/models/multimodalembedding:batchEmbedContents';
+		'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0057033292/locations/us-central1/publishers/google/models/multimodalembedding:predict';
 	// Require OAuth token via GOOGLE_APPLICATION_CREDENTIALS_JSON
 	const accessToken = await getGoogleAccessTokenFromEnv();
 	if (!accessToken) {
@@ -132,14 +132,17 @@ export async function embeddingSimilarityForImages({
 
 	async function getVector(base64: string): Promise<number[]> {
 		const body = {
-			requests: [
+			instances: [
 				{
-					model:
-						'projects/gen-lang-client-0057033292/locations/us-central1/models/multimodalembedding@001',
 					content: {
-						image: {
-							bytesBase64Encoded: base64,
-						},
+						role: 'user',
+						parts: [
+							{
+								image: {
+									bytesBase64Encoded: base64,
+								},
+							},
+						],
 					},
 				},
 			],
@@ -154,11 +157,13 @@ export async function embeddingSimilarityForImages({
 			throw new Error(`vertex multimodalembedding ${res.status}: ${text}`);
 		}
 		const json: any = await res.json();
-		// Handle both possible structures:
-		// Parse vectors from response.data.responses[0].embedding.values
-		const values: number[] | undefined = json?.data?.responses?.[0]?.embedding?.values;
+		// Parse vectors from predictions[0].embeddings.values (publisher predict format)
+		const values: number[] | undefined =
+			json?.predictions?.[0]?.embeddings?.values ??
+			json?.predictions?.[0]?.embeddings?.[0]?.values ??
+			json?.data?.predictions?.[0]?.embeddings?.values;
 		if (!Array.isArray(values)) {
-			throw new Error('vertex multimodalembedding: missing response.data.responses[0].embedding.values');
+			throw new Error('vertex multimodalembedding: missing predictions[0].embeddings.values');
 		}
 		return values;
 	}
