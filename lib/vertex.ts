@@ -16,10 +16,36 @@ export function stripDataUrl(b64OrDataUrl: string): string {
 	return b64OrDataUrl.replace(/^data:image\/\w+;base64,/, '');
 }
 
+function normalizeBase64(input: string): string {
+	// Support URL-safe base64 variants
+	let s = input.replace(/-/g, '+').replace(/_/g, '/');
+	// Remove whitespace/newlines
+	s = s.replace(/\s+/g, '');
+	// Pad to multiple of 4
+	const pad = s.length % 4;
+	if (pad === 2) s += '==';
+	else if (pad === 3) s += '=';
+	else if (pad === 1) {
+		// Invalid base64 length; better to throw than send bad payload
+		throw new Error('Invalid base64 input length');
+	}
+	return s;
+}
+
+export function decodeBase64ToBuffer(b64OrDataUrl: string): Buffer {
+	const raw = stripDataUrl(b64OrDataUrl);
+	const normalized = normalizeBase64(raw);
+	return Buffer.from(normalized, 'base64');
+}
+
 export function dataUrlApproxBytes(b64OrDataUrl: string): number {
-	const b64 = stripDataUrl(b64OrDataUrl);
-	// Base64 size approximation: 3/4 of length (ignoring padding)
-	return Math.floor((b64.length * 3) / 4);
+	try {
+		return decodeBase64ToBuffer(b64OrDataUrl).byteLength;
+	} catch {
+		// Fallback: Base64 size approximation: 3/4 of length (ignoring padding)
+		const b64 = stripDataUrl(b64OrDataUrl);
+		return Math.floor((b64.length * 3) / 4);
+	}
 }
 
 async function getAccessToken(): Promise<string> {
@@ -124,9 +150,13 @@ export async function embedImagesBase64Batch(dataUrlsOrBase64: string[]): Promis
 		throw new Error('VERTEX_PROJECT_ID and VERTEX_LOCATION must be configured');
 	}
 	const accessToken = await getAccessToken();
-	const instances = dataUrlsOrBase64.map((s) => ({
-		image: { bytesBase64Encoded: stripDataUrl(s) },
-	}));
+	const instances = dataUrlsOrBase64.map((s) => {
+		// Decode to bytes and re-encode to canonical base64 to avoid malformed inputs
+		const buf = decodeBase64ToBuffer(s);
+		return {
+			image: { bytesBase64Encoded: buf.toString('base64') },
+		};
+	});
 	const body = JSON.stringify({ instances });
 	const json = await fetchJsonWithTimeoutRetry(PREDICT_URL, {
 		headers: {
