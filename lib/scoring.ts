@@ -135,9 +135,16 @@ export async function embeddingSimilarityForImages({
 			instances: [
 				{
 					content: {
-						image: {
-							bytesBase64Encoded: base64,
-						},
+						role: 'user',
+						parts: [
+							{
+								// Vertex publishers predict expects Gemini-style parts with inlineData
+								inlineData: {
+									mimeType: target.mime || 'image/png',
+									data: base64,
+								},
+							},
+						],
 					},
 				},
 			],
@@ -154,6 +161,7 @@ export async function embeddingSimilarityForImages({
 		const json: any = await res.json();
 		const values: number[] | undefined =
 			json?.predictions?.[0]?.embeddings?.values ??
+			json?.predictions?.[0]?.embeddings?.[0]?.values ??
 			json?.data?.predictions?.[0]?.embeddings?.values;
 		if (!Array.isArray(values)) {
 			throw new Error('vertex multimodalembedding: missing predictions[0].embeddings.values');
