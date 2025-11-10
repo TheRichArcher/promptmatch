@@ -13,6 +13,29 @@ type ScoreResponse = {
 	feedback: { tips: string[]; note?: string };
 };
 
+function downscaleImage(dataUrl: string, maxDim = 768): Promise<string> {
+	return new Promise((resolve) => {
+		const img = new Image();
+		img.onload = () => {
+			const canvas = document.createElement('canvas');
+			let { width, height } = img as HTMLImageElement & { width: number; height: number };
+			if (width > height && width > maxDim) {
+				height = (height * maxDim) / width;
+				width = maxDim;
+			} else if (height > maxDim) {
+				width = (width * maxDim) / height;
+				height = maxDim;
+			}
+			canvas.width = width;
+			canvas.height = height;
+			const ctx = canvas.getContext('2d')!;
+			ctx.drawImage(img, 0, 0, width, height);
+			resolve(canvas.toDataURL('image/jpeg', 0.8));
+		};
+		img.src = dataUrl;
+	});
+}
+
 export default function TrainingPage() {
 	const level = useMemo(() => trainingLevels[0], []);
 	const [isLoading, setIsLoading] = useState(false);
@@ -65,7 +88,10 @@ export default function TrainingPage() {
 					throw new Error(genRes?.error || 'Failed to generate image');
 				}
 				const generatedDataUrl: string | null = genRes?.image || genRes?.imageUrl || genRes?.imageDataUrl || null;
-				setGeneratedImage(generatedDataUrl);
+				// Downscale both images if present
+				const targetDown = targetImageDataUrl ? await downscaleImage(targetImageDataUrl, 768) : null;
+				const generatedDown = generatedDataUrl ? await downscaleImage(generatedDataUrl, 768) : null;
+				setGeneratedImage(generatedDown);
 
 				// 2) Score similarity using embeddings (if key) and heuristics
 				const scoreResp = await fetch('/api/score', {
@@ -74,8 +100,8 @@ export default function TrainingPage() {
 					body: JSON.stringify({
 						prompt,
 						targetDescription: level.description,
-						targetImage: targetImageDataUrl,
-						generatedImage: generatedDataUrl,
+						targetImage: targetDown,
+						generatedImage: generatedDown,
 					}),
 				});
 				const scoreRes: ScoreResponse = await scoreResp.json();
