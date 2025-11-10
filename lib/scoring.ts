@@ -118,7 +118,7 @@ export async function embeddingSimilarityForImages({
 	// Vertex AI publisher model endpoint for multimodalembedding@001.
 	// We'll call it twice (one per image) with instances/content/image/bytesBase64Encoded.
 	const url =
-		'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0057033292/locations/us-central1/publishers/google/models/multimodalembedding@001:batchEmbedContents';
+		'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0057033292/locations/us-central1/models/multimodalembedding@001:batchEmbedContents';
 	// Require OAuth token via GOOGLE_APPLICATION_CREDENTIALS_JSON
 	const accessToken = await getGoogleAccessTokenFromEnv();
 	if (!accessToken) {
