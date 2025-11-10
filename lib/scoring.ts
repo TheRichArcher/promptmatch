@@ -115,19 +115,18 @@ export async function embeddingSimilarityForImages({
 	const generated = parseDataUrl(generatedImageDataUrl);
 	if (!target || !generated) return null;
 
-	// Use the v1 multimodalembedding model (requires OAuth access token)
-	const url = 'https://generativelanguage.googleapis.com/v1/models/multimodalembedding:batchEmbedContents';
+	// Use the v1 embedding-001 endpoint; supports batchEmbedContents with inlineData
+	const url = 'https://generativelanguage.googleapis.com/v1/models/embedding-001:batchEmbedContents';
 	const payload = {
 		requests: [
 			{
-				model: 'models/multimodalembedding',
+				model: 'models/embedding-001',
 				content: {
-					// v1 expects camelCase: inlineData + mimeType
 					parts: [{ inlineData: { mimeType: target.mime, data: target.base64 } }],
 				},
 			},
 			{
-				model: 'models/multimodalembedding',
+				model: 'models/embedding-001',
 				content: {
 					parts: [{ inlineData: { mimeType: generated.mime, data: generated.base64 } }],
 				},
@@ -153,7 +152,7 @@ export async function embeddingSimilarityForImages({
 	if (!res.ok) {
 		// Surface error so caller can record errorMessage and fallback accordingly
 		const text = await res.text();
-		throw new Error(`multimodalembedding ${res.status}: ${text}`);
+		throw new Error(`embedding-001 ${res.status}: ${text}`);
 	}
 	const data: any = await res.json();
 	// Some SDKs wrap JSON as {data: {...}}; support both
