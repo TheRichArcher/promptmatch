@@ -115,20 +115,21 @@ export async function embeddingSimilarityForImages({
 	const generated = parseDataUrl(generatedImageDataUrl);
 	if (!target || !generated) return null;
 
-	// Use the v1beta multimodalembedding model (requires OAuth access token)
-	const url = 'https://generativelanguage.googleapis.com/v1beta/models/multimodalembedding:batchEmbedContents';
+	// Use the v1 multimodalembedding model (requires OAuth access token)
+	const url = 'https://generativelanguage.googleapis.com/v1/models/multimodalembedding:batchEmbedContents';
 	const payload = {
 		requests: [
 			{
 				model: 'models/multimodalembedding',
 				content: {
-					parts: [{ inline_data: { mime_type: target.mime, data: target.base64 } }],
+					// v1 expects camelCase: inlineData + mimeType
+					parts: [{ inlineData: { mimeType: target.mime, data: target.base64 } }],
 				},
 			},
 			{
 				model: 'models/multimodalembedding',
 				content: {
-					parts: [{ inline_data: { mime_type: generated.mime, data: generated.base64 } }],
+					parts: [{ inlineData: { mimeType: generated.mime, data: generated.base64 } }],
 				},
 			},
 		],
