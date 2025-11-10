@@ -115,32 +115,36 @@ export async function embeddingSimilarityForImages({
 	const generated = parseDataUrl(generatedImageDataUrl);
 	if (!target || !generated) return null;
 
-	// Use the public REST endpoint for embedding-001 batch image embedding with Bearer auth
-	const url = 'https://generativelanguage.googleapis.com/v1/models/embedding-001:batchEmbedContents';
+	// Use the v1beta multimodalembedding model (requires OAuth access token)
+	const url = 'https://generativelanguage.googleapis.com/v1beta/models/multimodalembedding:batchEmbedContents';
 	const payload = {
 		requests: [
 			{
-				model: 'models/embedding-001',
+				model: 'models/multimodalembedding',
 				content: {
 					parts: [{ inline_data: { mime_type: target.mime, data: target.base64 } }],
 				},
 			},
 			{
-				model: 'models/embedding-001',
+				model: 'models/multimodalembedding',
 				content: {
 					parts: [{ inline_data: { mime_type: generated.mime, data: generated.base64 } }],
 				},
 			},
 		],
 	};
-	// Prefer service-account OAuth if provided; otherwise fall back to API key via query param
+	// Require OAuth token via GOOGLE_APPLICATION_CREDENTIALS_JSON
 	const accessToken = await getGoogleAccessTokenFromEnv();
-	const finalUrl =
-		accessToken || !apiKey ? url : `${url}?key=${encodeURIComponent(apiKey)}`;
-	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-	if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+	if (!accessToken) {
+		// No OAuth token available; let caller decide the fallback path
+		return null;
+	}
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json',
+		Authorization: `Bearer ${accessToken}`,
+	};
 
-	const res = await fetch(finalUrl, {
+	const res = await fetch(url, {
 		method: 'POST',
 		headers,
 		body: JSON.stringify(payload),
@@ -148,7 +152,7 @@ export async function embeddingSimilarityForImages({
 	if (!res.ok) {
 		// Surface error so caller can record errorMessage and fallback accordingly
 		const text = await res.text();
-		throw new Error(`embedding-001 ${res.status}: ${text}`);
+		throw new Error(`multimodalembedding ${res.status}: ${text}`);
 	}
 	const data: any = await res.json();
 	// Some SDKs wrap JSON as {data: {...}}; support both
