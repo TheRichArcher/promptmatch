@@ -115,24 +115,10 @@ export async function embeddingSimilarityForImages({
 	const generated = parseDataUrl(generatedImageDataUrl);
 	if (!target || !generated) return null;
 
-	// Use the v1 embedding-001 endpoint; supports batchEmbedContents with inlineData
-	const url = 'https://generativelanguage.googleapis.com/v1/models/embedding-001:batchEmbedContents';
-	const payload = {
-		requests: [
-			{
-				model: 'models/embedding-001',
-				content: {
-					parts: [{ inlineData: { mimeType: target.mime, data: target.base64 } }],
-				},
-			},
-			{
-				model: 'models/embedding-001',
-				content: {
-					parts: [{ inlineData: { mimeType: generated.mime, data: generated.base64 } }],
-				},
-			},
-		],
-	};
+	// Vertex AI publisher model endpoint for multimodalembedding@001.
+	// We'll call it twice (one per image) with instances/content/image/bytesBase64Encoded.
+	const url =
+		'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0057033292/locations/us-central1/publishers/google/models/multimodalembedding@001:batchEmbedContents';
 	// Require OAuth token via GOOGLE_APPLICATION_CREDENTIALS_JSON
 	const accessToken = await getGoogleAccessTokenFromEnv();
 	if (!accessToken) {
@@ -144,29 +130,39 @@ export async function embeddingSimilarityForImages({
 		Authorization: `Bearer ${accessToken}`,
 	};
 
-	const res = await fetch(url, {
-		method: 'POST',
-		headers,
-		body: JSON.stringify(payload),
-	});
-	if (!res.ok) {
-		// Surface error so caller can record errorMessage and fallback accordingly
-		const text = await res.text();
-		throw new Error(`embedding-001 ${res.status}: ${text}`);
+	async function getVector(base64: string): Promise<number[]> {
+		const body = {
+			instances: [
+				{
+					content: {
+						image: {
+							bytesBase64Encoded: base64,
+						},
+					},
+				},
+			],
+		};
+		const res = await fetch(url, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify(body),
+		});
+		if (!res.ok) {
+			const text = await res.text();
+			throw new Error(`vertex multimodalembedding ${res.status}: ${text}`);
+		}
+		const json: any = await res.json();
+		const values: number[] | undefined =
+			json?.predictions?.[0]?.embeddings?.values ??
+			json?.data?.predictions?.[0]?.embeddings?.values;
+		if (!Array.isArray(values)) {
+			throw new Error('vertex multimodalembedding: missing predictions[0].embeddings.values');
+		}
+		return values;
 	}
-	const data: any = await res.json();
-	// Some SDKs wrap JSON as {data: {...}}; support both
-	const root = data?.data?.embeddings ? data.data : data;
-	const embeddings = root?.embeddings;
-	if (!Array.isArray(embeddings) || embeddings.length < 2) return null;
-	const vec = (e: any): number[] | null => {
-		if (Array.isArray(e?.values)) return e.values as number[];
-		if (Array.isArray(e?.embedding?.values)) return e.embedding.values as number[];
-		return null;
-	};
-	const v0 = vec(embeddings[0]);
-	const v1 = vec(embeddings[1]);
-	if (!v0 || !v1) return null;
+
+	const v0 = await getVector(target.base64);
+	const v1 = await getVector(generated.base64);
 	return cosineSimilarity(v0, v1);
 }
 

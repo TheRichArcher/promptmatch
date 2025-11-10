@@ -7,7 +7,11 @@ export async function getGoogleAccessTokenFromEnv(): Promise<string | null> {
 		const credentials = JSON.parse(raw);
 		const auth = new GoogleAuth({
 			credentials,
-			scopes: ['https://www.googleapis.com/auth/generative-language'],
+			// Include both Generative Language and Cloud Platform scopes so we can call Vertex AI endpoints
+			scopes: [
+				'https://www.googleapis.com/auth/generative-language',
+				'https://www.googleapis.com/auth/cloud-platform',
+			],
 		});
 		const client = await auth.getClient();
 		const token = await client.getAccessToken();
