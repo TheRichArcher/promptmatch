@@ -115,10 +115,10 @@ export async function embeddingSimilarityForImages({
 	const generated = parseDataUrl(generatedImageDataUrl);
 	if (!target || !generated) return null;
 
-	// Vertex AI publisher model predict endpoint for multimodalembedding@001.
-	// We'll call it twice (one per image) with instances/content/image/bytesBase64Encoded.
+	// Vertex AI batchEmbedContents endpoint for multimodalembedding@001.
+	// We'll call it twice (one per image) with requests/content/image/bytesBase64Encoded.
 	const url =
-		'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0057033292/locations/us-central1/publishers/google/models/multimodalembedding@001:predict';
+		'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0057033292/locations/us-central1/models/multimodalembedding@001:batchEmbedContents';
 	// Require OAuth token via GOOGLE_APPLICATION_CREDENTIALS_JSON
 	const accessToken = await getGoogleAccessTokenFromEnv();
 	if (!accessToken) {
@@ -130,20 +130,16 @@ export async function embeddingSimilarityForImages({
 		Authorization: `Bearer ${accessToken}`,
 	};
 
-	async function getVector(base64: string, mime: string): Promise<number[]> {
+	async function getVector(base64: string): Promise<number[]> {
 		const body = {
-			instances: [
+			requests: [
 				{
+					model:
+						'projects/gen-lang-client-0057033292/locations/us-central1/models/multimodalembedding@001',
 					content: {
-						role: 'user',
-						parts: [
-							{
-								// Vertex expects Gemini-style parts; use image.bytesBase64Encoded
-								image: {
-									bytesBase64Encoded: base64,
-								},
-							},
-						],
+						image: {
+							bytesBase64Encoded: base64,
+						},
 					},
 				},
 			],
@@ -158,18 +154,23 @@ export async function embeddingSimilarityForImages({
 			throw new Error(`vertex multimodalembedding ${res.status}: ${text}`);
 		}
 		const json: any = await res.json();
+		// Handle both possible structures:
+		// - responses[0].embedding.values (preferred)
+		// - responses[0].embedding (already the values array)
+		const responses = json?.responses ?? json?.data?.responses;
+		const first = responses?.[0];
+		const embedding = first?.embedding;
 		const values: number[] | undefined =
-			json?.predictions?.[0]?.embeddings?.values ??
-			json?.predictions?.[0]?.embeddings?.[0]?.values ??
-			json?.data?.predictions?.[0]?.embeddings?.values;
+			(Array.isArray(embedding?.values) ? embedding.values : undefined) ??
+			(Array.isArray(embedding) ? (embedding as number[]) : undefined);
 		if (!Array.isArray(values)) {
-			throw new Error('vertex multimodalembedding: missing predictions[0].embeddings.values');
+			throw new Error('vertex multimodalembedding: missing responses[0].embedding.values');
 		}
 		return values;
 	}
 
-	const v0 = await getVector(target.base64, target.mime);
-	const v1 = await getVector(generated.base64, generated.mime);
+	const v0 = await getVector(target.base64);
+	const v1 = await getVector(generated.base64);
 	return cosineSimilarity(v0, v1);
 }
 
