@@ -48,17 +48,45 @@ export function dataUrlApproxBytes(b64OrDataUrl: string): number {
 	}
 }
 
-async function getAccessToken(): Promise<string> {
-	const creds = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-	if (!creds) throw new Error('Missing GOOGLE_APPLICATION_CREDENTIALS_JSON');
+let cachedToken: string | null = null;
+let tokenExpiry: number | null = null;
+
+export async function getAccessToken(): Promise<string> {
+	if (cachedToken && tokenExpiry && Date.now() < tokenExpiry) {
+		return cachedToken;
+	}
+
+	let credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+	if (!credsJson && process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_B64) {
+		try {
+			credsJson = Buffer.from(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON_B64, 'base64').toString('utf-8');
+		} catch (e) {
+			throw new Error('Failed to decode B64 credentials: ' + (e as Error).message);
+		}
+	}
+	if (!credsJson) {
+		throw new Error('Missing GOOGLE_APPLICATION_CREDENTIALS_JSON or _B64');
+	}
+
+	let credentials: any;
+	try {
+		credentials = JSON.parse(credsJson);
+	} catch (e) {
+		throw new Error('Invalid JSON in credentials: ' + (e as Error).message);
+	}
+
 	const auth = new GoogleAuth({
-		credentials: JSON.parse(creds),
+		credentials,
 		scopes: ['https://www.googleapis.com/auth/cloud-platform'],
 	});
 	const client = await auth.getClient();
-	const token = await client.getAccessToken();
-	if (!token || !token.token) throw new Error('Failed to obtain access token');
-	return token.token;
+	const tokenResponse = await client.getAccessToken();
+	if (!tokenResponse?.token) {
+		throw new Error('Failed to get access token from Google');
+	}
+	cachedToken = tokenResponse.token;
+	tokenExpiry = Date.now() + 3_500_000; // ~58 min
+	return cachedToken;
 }
 
 type FetchOpts = {
