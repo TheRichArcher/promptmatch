@@ -187,53 +187,50 @@ export async function embedImagesBase64Batch(dataUrlsOrBase64: string[]): Promis
 	}
 	const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/multimodalembedding@001:predict`;
 
-	// Build instances using raw base64 from potential data URLs
-	const instances = dataUrlsOrBase64.map((img) => ({
-		image: { bytesBase64Encoded: stripDataUrl(img) },
-	}));
-
-	try {
-		const res = await fetch(endpoint, {
-			method: 'POST',
-			headers: {
-				Authorization: `Bearer ${token}`,
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({ instances }),
-		});
-
-		const text = await res.text();
-		console.log(`[vertex] BATCH: Status ${res.status} | Response: ${text.substring(0, 500)}`);
-		if (!res.ok) {
-			throw new Error(`Vertex API ${res.status}: ${text.substring(0, 200)}`);
-		}
-
-		let data: any;
-		try {
-			data = JSON.parse(text);
-		} catch {
-			throw new Error(`vertex json parse: ${text}`);
-		}
-
-		// Be liberal in parsing the embedding shape to avoid downstream breakage
-		const preds: any[] = Array.isArray(data?.predictions) ? data.predictions : [];
-		const vectors: number[][] = [];
-		for (const p of preds) {
-			const vec =
-				p?.imageEmbedding?.values ??
-				p?.embeddings?.imageEmbedding?.values ??
-				p?.embeddings?.values ??
-				(Array.isArray(p?.embeddings) ? p.embeddings?.[0]?.values : undefined) ??
-				p?.imageEmbedding;
-			if (Array.isArray(vec)) {
-				vectors.push(vec as number[]);
+	// The Vertex model rejects multiple instances in one request.
+	// Send one request per image and collect vectors.
+	const results = await Promise.all(
+		dataUrlsOrBase64.map(async (img, idx) => {
+			const body = JSON.stringify({
+				instances: [{ image: { bytesBase64Encoded: stripDataUrl(img) } }],
+			});
+			try {
+				const res = await fetch(endpoint, {
+					method: 'POST',
+					headers: {
+						Authorization: `Bearer ${token}`,
+						'Content-Type': 'application/json',
+					},
+					body,
+				});
+				const text = await res.text();
+				console.log(
+					`[vertex] BATCH: #${idx + 1}/${dataUrlsOrBase64.length} Status ${res.status} | Response: ${text.substring(
+						0,
+						500
+					)}`
+				);
+				if (!res.ok) {
+					throw new Error(`Vertex API ${res.status}: ${text.substring(0, 200)}`);
+				}
+				let data: any;
+				try {
+					data = JSON.parse(text);
+				} catch {
+					throw new Error(`vertex json parse: ${text}`);
+				}
+				const vectors = parseEmbeddingVectors(data);
+				if (!vectors[0]) {
+					throw new Error('vertex predict: no vector in response');
+				}
+				return vectors[0];
+			} catch (e: any) {
+				console.error('[vertex] BATCH FAILED:', e?.message ?? String(e));
+				throw e;
 			}
-		}
-		return vectors;
-	} catch (e: any) {
-		console.error('[vertex] BATCH FAILED:', e.message ?? String(e));
-		throw e;
-	}
+		})
+	);
+	return results;
 }
 
 export async function embedImageBase64(dataUrlOrBase64: string): Promise<number[]> {
