@@ -161,17 +161,31 @@ function parseEmbeddingVectors(json: any): number[][] {
 	// D) { predictions: [ { imageEmbedding: { values: [...] } } ] }
 	// E) { predictions: [ { imageEmbedding: [...] } ] }
 	// F) { predictions: [ { embeddings: { imageEmbedding: [...] } } ] }
+	// G) snake_case variants with values/floatValues
 	const preds = Array.isArray(json?.predictions) ? json.predictions : [];
 	const vectors: number[][] = [];
 	for (const p of preds) {
 		const candidates = [
 			p?.embeddings?.imageEmbedding?.values,
+			p?.embeddings?.imageEmbedding?.floatValues,
 			p?.embeddings?.values,
 			Array.isArray(p?.embeddings) ? p.embeddings?.[0]?.values : undefined,
 			p?.imageEmbedding?.values,
+			p?.imageEmbedding?.floatValues,
 			// Direct arrays without .values
 			Array.isArray(p?.imageEmbedding) ? p.imageEmbedding : undefined,
 			Array.isArray(p?.embeddings?.imageEmbedding) ? p.embeddings.imageEmbedding : undefined,
+			// snake_case keys
+			p?.embeddings?.image_embedding?.values,
+			p?.embeddings?.image_embedding?.floatValues,
+			p?.image_embedding?.values,
+			p?.image_embedding?.floatValues,
+			Array.isArray(p?.embeddings)
+				? (p.embeddings?.[0]?.imageEmbedding?.values ??
+						p.embeddings?.[0]?.imageEmbedding?.floatValues ??
+						p.embeddings?.[0]?.image_embedding?.values ??
+						p.embeddings?.[0]?.image_embedding?.floatValues)
+				: undefined,
 		].filter(Boolean);
 		const vec = candidates[0];
 		if (Array.isArray(vec)) {
