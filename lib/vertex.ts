@@ -154,6 +154,29 @@ function jitterDelay(attempt: number): number {
 }
 
 function parseEmbeddingVectors(json: any): number[][] {
+	function isNumericArray(arr: any): arr is number[] {
+		return Array.isArray(arr) && arr.length > 0 && arr.every((x) => typeof x === 'number');
+	}
+	function findFirstNumericArrayDeep(node: any): number[] | null {
+		if (!node || typeof node !== 'object') return null;
+		// If node has a 'values' or 'floatValues' that is numeric, prefer those
+		if (isNumericArray(node?.values)) return node.values;
+		if (isNumericArray(node?.floatValues)) return node.floatValues;
+		// Direct numeric array
+		if (isNumericArray(node)) return node;
+		if (Array.isArray(node)) {
+			for (const child of node) {
+				const found = findFirstNumericArrayDeep(child);
+				if (found) return found;
+			}
+		} else {
+			for (const key of Object.keys(node)) {
+				const found = findFirstNumericArrayDeep(node[key]);
+				if (found) return found;
+			}
+		}
+		return null;
+	}
 	// Handle shapes:
 	// A) { predictions: [ { embeddings: { imageEmbedding: { values: [...] } } } ] }
 	// B) { predictions: [ { embeddings: { values: [...] } } ] }
@@ -162,7 +185,7 @@ function parseEmbeddingVectors(json: any): number[][] {
 	// E) { predictions: [ { imageEmbedding: [...] } ] }
 	// F) { predictions: [ { embeddings: { imageEmbedding: [...] } } ] }
 	// G) snake_case variants with values/floatValues
-	const preds = Array.isArray(json?.predictions) ? json.predictions : [];
+	const preds = Array.isArray(json?.predictions) ? json.predictions : Array.isArray(json?.outputs) ? json.outputs : [];
 	const vectors: number[][] = [];
 	for (const p of preds) {
 		const candidates = [
@@ -190,6 +213,12 @@ function parseEmbeddingVectors(json: any): number[][] {
 		const vec = candidates[0];
 		if (Array.isArray(vec)) {
 			vectors.push(vec as number[]);
+			continue;
+		}
+		// Fallback: deep search for first numeric array (e.g., unknown nesting)
+		const fallback = findFirstNumericArrayDeep(p);
+		if (fallback) {
+			vectors.push(fallback);
 		}
 	}
 	return vectors;
