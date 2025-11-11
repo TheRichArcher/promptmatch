@@ -69,9 +69,24 @@ export async function POST(req: NextRequest) {
 					scoringMode = 'image-embedding';
 				}
 			} catch (e: any) {
-				errorMessage = e?.message ?? String(e);
-				// Keep quiet in production, log server-side
-				console.error('[score] Vertex image embedding error:', errorMessage);
+				const vertexError = e?.message ?? String(e);
+				console.error('[score] Vertex image embedding error:', vertexError);
+				// Immediate fallback with visible error message (truncated) to aid diagnosis
+				const similarity01Fallback = jaccardSimilarity(prompt, targetDescription);
+				const bonusFallback = heuristicPromptBonus(prompt);
+				const aiScoreFallback = computeFinalScore(similarity01Fallback, bonusFallback);
+				const feedbackFallback = generatePromptFeedback({ prompt, targetDescription, similarity01: similarity01Fallback });
+				return NextResponse.json(
+					{
+						aiScore: aiScoreFallback,
+						similarity01: similarity01Fallback,
+						bonus: bonusFallback,
+						feedback: feedbackFallback,
+						scoringMode: 'jaccard-fallback',
+						errorMessage: vertexError.slice(0, 200),
+					},
+					{ status: 200 },
+				);
 			}
 		}
 
