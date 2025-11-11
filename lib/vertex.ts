@@ -111,16 +111,19 @@ async function fetchJsonWithTimeoutRetry(url: string, { method = 'POST', headers
 				signal: controller.signal,
 			});
 			clearTimeout(timer);
+			console.log(`[vertex] Response status: ${res.status}`);
 			const text = await res.text();
 			if (!res.ok) {
 				// Retry on 429 and 5xx
 				if (res.status === 429 || (res.status >= 500 && res.status <= 599)) {
-					lastError = new Error(`vertex predict ${res.status}: ${text}`);
+					console.error('[vertex] API ERROR:', res.status, text);
+					lastError = new Error(`Vertex API ${res.status}: ${text.substring(0, 200)}`);
 					await new Promise((r) => setTimeout(r, jitterDelay(attempt)));
 					attempt++;
 					continue;
 				}
-				throw new Error(`vertex predict ${res.status}: ${text}`);
+				console.error('[vertex] API ERROR:', res.status, text);
+				throw new Error(`Vertex API ${res.status}: ${text.substring(0, 200)}`);
 			}
 			let json: any;
 			try {
@@ -178,6 +181,7 @@ export async function embedImagesBase64Batch(dataUrlsOrBase64: string[]): Promis
 		throw new Error('VERTEX_PROJECT_ID and VERTEX_LOCATION must be configured');
 	}
 	const accessToken = await getAccessToken();
+	console.log('[vertex] Access token acquired');
 	const instances = dataUrlsOrBase64.map((s) => {
 		// Decode to bytes and re-encode to canonical base64 to avoid malformed inputs
 		const buf = decodeBase64ToBuffer(s);
@@ -185,6 +189,7 @@ export async function embedImagesBase64Batch(dataUrlsOrBase64: string[]): Promis
 			image: { bytesBase64Encoded: buf.toString('base64') },
 		};
 	});
+	console.log(`[vertex] Sending ${instances.length} images to Vertex AI`);
 	const body = JSON.stringify({ instances });
 	const json = await fetchJsonWithTimeoutRetry(PREDICT_URL, {
 		headers: {
@@ -208,8 +213,21 @@ export async function embedImageBase64(dataUrlOrBase64: string): Promise<number[
 }
 
 // Convenience alias to match expected import name in tests
-export async function embedImagesBase64(dataUrlsOrBase64: string[]): Promise<number[][]> {
-	return embedImagesBase64Batch(dataUrlsOrBase64);
+export async function embedImagesBase64(images: string[]): Promise<number[][]> {
+	if (images.length === 0) throw new Error('No images provided');
+	if (images.length === 1) {
+		// Duplicate single image to satisfy Vertex batch requirement
+		images = [images[0], images[0]];
+	}
+	try {
+		// Ensure token is retrievable (will be cached on subsequent use)
+		await getAccessToken();
+		console.log('[vertex] Token OK, calling Vertex AI...');
+		return await embedImagesBase64Batch(images);
+	} catch (e: any) {
+		console.error('[vertex] FAILED:', e?.message ?? String(e));
+		throw e;
+	}
 }
 
 export function cosineSimilarity(a: number[], b: number[]) {
