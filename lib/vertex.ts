@@ -111,18 +111,15 @@ async function fetchJsonWithTimeoutRetry(url: string, { method = 'POST', headers
 				signal: controller.signal,
 			});
 			clearTimeout(timer);
-			console.log(`[vertex] Response status: ${res.status}`);
 			const text = await res.text();
 			if (!res.ok) {
 				// Retry on 429 and 5xx
 				if (res.status === 429 || (res.status >= 500 && res.status <= 599)) {
-					console.error('[vertex] API ERROR:', res.status, text);
 					lastError = new Error(`Vertex API ${res.status}: ${text.substring(0, 200)}`);
 					await new Promise((r) => setTimeout(r, jitterDelay(attempt)));
 					attempt++;
 					continue;
 				}
-				console.error('[vertex] API ERROR:', res.status, text);
 				throw new Error(`Vertex API ${res.status}: ${text.substring(0, 200)}`);
 			}
 			let json: any;
@@ -225,10 +222,7 @@ function parseEmbeddingVectors(json: any): number[][] {
 }
 
 export async function embedImagesBase64Batch(dataUrlsOrBase64: string[]): Promise<number[][]> {
-	// Logging per requested style
-	console.log(`[vertex] BATCH: Sending ${dataUrlsOrBase64.length} images to Vertex AI`);
 	const token = await getAccessToken();
-	console.log('[vertex] BATCH: Token acquired');
 
 	if (!PROJECT_ID || !LOCATION) {
 		throw new Error('VERTEX_PROJECT_ID and VERTEX_LOCATION must be configured');
@@ -252,12 +246,6 @@ export async function embedImagesBase64Batch(dataUrlsOrBase64: string[]): Promis
 					body,
 				});
 				const text = await res.text();
-				console.log(
-					`[vertex] BATCH: #${idx + 1}/${dataUrlsOrBase64.length} Status ${res.status} | Response: ${text.substring(
-						0,
-						500
-					)}`
-				);
 				if (!res.ok) {
 					throw new Error(`Vertex API ${res.status}: ${text.substring(0, 200)}`);
 				}
@@ -273,7 +261,6 @@ export async function embedImagesBase64Batch(dataUrlsOrBase64: string[]): Promis
 				}
 				return vectors[0];
 			} catch (e: any) {
-				console.error('[vertex] BATCH FAILED:', e?.message ?? String(e));
 				throw e;
 			}
 		})
@@ -325,6 +312,7 @@ export async function getOrComputeImageEmbeddingCached(dataUrlOrBase64: string):
 export async function initTargetEmbeddings(): Promise<void> {
 	if (initialized) return;
 	initialized = true;
+	console.log('[vertex] Cache warmup initialized');
 	// Optionally: seed known targets here by reading from public/ if present.
 	// In absence of static assets, cache will warm on first request using provided target images.
 }

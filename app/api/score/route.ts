@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { computeFinalScore, embeddingSimilarity, heuristicPromptBonus, jaccardSimilarity } from '@/lib/scoring';
+import { computeFinalScore, heuristicPromptBonus, jaccardSimilarity } from '@/lib/scoring';
 import { embedImagesBase64, initTargetEmbeddings, dataUrlApproxBytes, cosineSimilarity } from '@/lib/vertex';
 import { generatePromptFeedback } from '@/lib/feedback';
 
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
 		const apiKey = process.env.GOOGLE_API_KEY;
 		let similarity01: number | null = null;
-		let scoringMode: 'image-embedding' | 'text-embedding' | 'jaccard-fallback' | null = null;
+		let scoringMode: 'image-embedding' | 'jaccard-fallback' | null = null;
 		let errorMessage: string | null = null;
 
 		// Server-side size validation (<= 1.5 MB each)
@@ -46,12 +46,9 @@ export async function POST(req: NextRequest) {
 			let vertexError: string | null = null;
 
 			try {
-				console.log('[score] FORCING Vertex AI embedding...');
 				vectors = await embedImagesBase64([targetImage, generatedImage]);
-				console.log(`[score] SUCCESS: Got ${vectors.length} vectors, dim=${vectors[0]?.length}`);
 			} catch (e: any) {
 				vertexError = e?.message || 'Vertex failed';
-				console.error('[score] VERTEX ERROR:', vertexError);
 			}
 
 			// === FORCE IMAGE-EMBEDDING MODE (NO FALLBACK) ===
@@ -75,7 +72,6 @@ export async function POST(req: NextRequest) {
 			}
 
 			// === ONLY FALLBACK IF VERTEX TRULY FAILED ===
-			console.log('[score] Vertex failed, using Jaccard fallback');
 			const simJ = jaccardSimilarity(prompt, targetDescription);
 			const bonus = heuristicPromptBonus(prompt);
 			const aiScore = computeFinalScore(simJ, bonus);
@@ -86,28 +82,11 @@ export async function POST(req: NextRequest) {
 					similarity01: simJ,
 					bonus,
 					feedback,
-					scoringMode: 'jaccard-fallback',
-					errorMessage: vertexError?.substring(0, 200) || null,
+					scoringMode: process.env.NODE_ENV !== 'production' ? 'jaccard-fallback' : undefined,
+					errorMessage: process.env.NODE_ENV !== 'production' ? vertexError?.substring(0, 200) || null : null,
 				},
 				{ status: 200 },
 			);
-		}
-
-		try {
-			// If image similarity not available, try text embeddings as a backup
-			if (similarity01 === null) {
-				similarity01 = await embeddingSimilarity({
-					prompt,
-					targetDescription,
-					apiKey: apiKey || undefined,
-					useVision: true,
-				});
-				if (similarity01 !== null) {
-					scoringMode = 'text-embedding';
-				}
-			}
-		} catch {
-			// ignore and fallback
 		}
 
 		// Fallback similarity if embeddings unavailable
@@ -126,7 +105,7 @@ export async function POST(req: NextRequest) {
 				similarity01,
 				bonus,
 				feedback,
-				scoringMode,
+				scoringMode: scoringMode === 'jaccard-fallback' && process.env.NODE_ENV === 'production' ? undefined : scoringMode,
 				errorMessage: process.env.NODE_ENV !== 'production' ? errorMessage : null,
 			},
 			{ status: 200 },
