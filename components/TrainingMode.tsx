@@ -95,9 +95,6 @@ export default function TrainingMode() {
 						<h2 className="text-xl font-semibold">{headerTitle}</h2>
 						<div className="text-sm text-gray-600">{headerSub}</div>
 					</div>
-					<a className="text-sm text-primary-600 hover:underline" href="/play">
-						Single Round
-					</a>
 				</div>
 				{/* Progress Bar */}
 				<div className="w-full rounded-full bg-gray-100">

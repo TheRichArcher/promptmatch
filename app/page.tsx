@@ -7,7 +7,7 @@ export default function HomePage() {
 					Recreate a hidden image using only your prompt. The closer the match, the higher your score. Learn by doing with quick feedback.
 				</p>
 				<div className="flex flex-wrap gap-3">
-					<a className="btn" href="/play">
+					<a className="btn" href="/train">
 						Start Training
 					</a>
 					<button className="btn bg-gray-900 hover:bg-black" disabled>

@@ -23,11 +23,8 @@ export default function RootLayout({
 							PromptMatch
 						</a>
 						<nav className="flex items-center gap-4 text-sm text-gray-600">
-							<a className="hover:text-gray-900" href="/play">
-								Single Round
-							</a>
 							<a className="hover:text-gray-900" href="/train">
-								5-Round Mode
+								Training
 							</a>
 						</nav>
 					</header>
