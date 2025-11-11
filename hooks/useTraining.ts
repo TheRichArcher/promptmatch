@@ -127,60 +127,47 @@ export function useTraining(initialSameSet?: { levels: Level[]; images: string[]
 		}));
 	}, []);
 
-	const handleNextRound = useCallback(
-		async (prompt: string | null) => {
-			if (state.isComplete) return;
-			const current = state.round;
+	// Score the current round without advancing; UI controls when to proceed.
+	const scoreCurrentRound = useCallback(async (prompt: string) => {
+		if (state.isComplete) return;
+		const current = state.round;
+		if (current >= 5) return;
 
-			// Round-specific behavior:
-			// 1: Baseline (score)
-			// 2: Guided (score) - prefill is handled by UI
-			// 3: Peer Example (score still allowed; UI shows example)
-			// 4: Reinforcement (similar image; score)
-			// 5: Summary (no action)
-			if (current >= 5) {
-				setState((prev) => ({ ...prev, isComplete: true }));
-				return;
-			}
+		const levelIdx = Math.max(0, Math.min(state.levels.length - 1, current - 1));
+		const level = state.levels[levelIdx];
 
-			const levelIdx = Math.max(0, Math.min(state.levels.length - 1, current - 1));
-			const level = state.levels[levelIdx];
+		let targetImageForScoring = state.targetImages[levelIdx] ?? null;
+		let targetDescription = level.description;
 
-			let targetImageForScoring = state.targetImages[levelIdx] ?? null;
-			let targetDescription = level.description;
+		// Round 4: Use a similar-but-new image and description
+		if (current === 4) {
+			const similar = mutateSpecSimilar(level.spec as any);
+			targetImageForScoring = shapeSpecToDataUrl(similar);
+			targetDescription = describeSpec(similar);
+		}
 
-			// Round 4: Use a similar-but-new image and description
-			if (current === 4) {
-				const similar = mutateSpecSimilar(level.spec as any);
-				targetImageForScoring = shapeSpecToDataUrl(similar);
-				targetDescription = describeSpec(similar);
-			}
+		const { score, feedback, similarity01 } = await scoreRound(prompt.trim(), targetDescription, targetImageForScoring ?? undefined);
 
-			if (!prompt || !prompt.trim()) {
-				// Just advance without scoring if no prompt (defensive)
-				setState((prev) => ({
-					...prev,
-					prompts: [...prev.prompts, ''],
-					round: current + 1,
-					isComplete: current + 1 > 5,
-				}));
-				return;
-			}
+		setState((prev) => ({
+			...prev,
+			prompts: [...prev.prompts, prompt.trim()],
+			scores: [...prev.scores, score],
+			feedback: [...prev.feedback, feedback],
+			similarities: [...prev.similarities, typeof similarity01 === 'number' ? similarity01 : 0],
+		}));
+	}, [state.isComplete, state.levels, state.round, state.targetImages]);
 
-			const { score, feedback, similarity01 } = await scoreRound(prompt.trim(), targetDescription, targetImageForScoring ?? undefined);
-
-			setState((prev) => ({
+	// Advance to next round; mark complete when entering round 5 (summary).
+	const goNextRound = useCallback(() => {
+		setState((prev) => {
+			const nextRound = Math.min(5, prev.round + 1);
+			return {
 				...prev,
-				prompts: [...prev.prompts, prompt.trim()],
-				scores: [...prev.scores, score],
-				feedback: [...prev.feedback, feedback],
-				similarities: [...prev.similarities, typeof similarity01 === 'number' ? similarity01 : 0],
-				round: current + 1,
-				isComplete: current + 1 > 5,
-			}));
-		},
-		[state],
-	);
+				round: nextRound,
+				isComplete: nextRound >= 5,
+			};
+		});
+	}, []);
 
 	return {
 		state: {
@@ -192,7 +179,8 @@ export function useTraining(initialSameSet?: { levels: Level[]; images: string[]
 			isComplete: state.isComplete,
 		} as TrainingState,
 		internal: state,
-		handleNextRound,
+		scoreCurrentRound,
+		goNextRound,
 		resetNewSet,
 		retrySameSet,
 	};

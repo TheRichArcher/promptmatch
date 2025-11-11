@@ -1,27 +1,28 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import CanvasPreview from '@/components/CanvasPreview';
 import PromptInput from '@/components/PromptInput';
 import { useTraining } from '@/hooks/useTraining';
 import { trainingLevels } from '@/lib/levels';
 
 export default function TrainingMode() {
-	const { state, internal, handleNextRound, resetNewSet, retrySameSet } = useTraining(null);
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const { state, internal, scoreCurrentRound, goNextRound, resetNewSet, retrySameSet } = useTraining(null);
+	const [isScoring, setIsScoring] = useState(false);
+	const [lastSubmittedRound, setLastSubmittedRound] = useState<number | null>(null);
 
-	const roundTitle = useMemo(() => {
+	const { headerTitle, headerSub } = useMemo(() => {
 		switch (state.round) {
 			case 1:
-				return 'Baseline';
+				return { headerTitle: 'Round 1 – Baseline', headerSub: '“Describe what you see.”' };
 			case 2:
-				return 'Guided Revision';
+				return { headerTitle: 'Round 2 – Guided Revision', headerSub: '“Try improving based on your last feedback.”' };
 			case 3:
-				return 'Peer Example';
+				return { headerTitle: 'Round 3 – Peer Example', headerSub: '“Compare to a model-perfect prompt.”' };
 			case 4:
-				return 'Reinforcement';
+				return { headerTitle: 'Round 4 – Reinforcement', headerSub: '“Try again with a new target.”' };
 			default:
-				return 'Summary';
+				return { headerTitle: 'Round 5 – Results Summary', headerSub: '“View your improvement and feedback highlights.”' };
 		}
 	}, [state.round]);
 
@@ -29,14 +30,27 @@ export default function TrainingMode() {
 	const examplePrompt = internal.levels[Math.max(0, Math.min(internal.levels.length - 1, state.round - 1))]?.examplePrompt ?? '';
 
 	// Preload prompt for Round 2
-	const defaultPrompt =
-		state.round === 2 ? state.prompts[0] ?? '' : state.round === 3 ? examplePrompt || state.prompts[1] || '' : state.round === 4 ? state.prompts[2] || '' : '';
+	const defaultPrompt = useMemo(() => {
+		if (state.round >= 2) {
+			const prior = state.prompts[state.round - 2] ?? '';
+			if (state.round === 3 && examplePrompt) {
+				// Show example but still prefill prior
+				return prior;
+			}
+			return prior;
+		}
+		return '';
+	}, [state.prompts, state.round, examplePrompt]);
+
+	// Progress calculations
+	const progressPct = Math.min(100, Math.max(0, (state.round / 5) * 100));
+	const blocks = new Array(5).fill(0).map((_, i) => i < state.round ? 'filled' : 'empty');
 
 	if (state.isComplete || state.round > 5) {
 		const improvement = state.scores.length >= 2 ? Math.round((state.scores[state.scores.length - 1] ?? 0) - (state.scores[0] ?? 0)) : 0;
 		const avgSimilarity =
 			internal.similarities.length > 0 ? (internal.similarities.reduce((a, b) => a + b, 0) / internal.similarities.length).toFixed(2) : '—';
-		const topTip = internal.feedback?.[0] || state.feedback[0] || 'Describe placement and composition.';
+		const topTip = state.feedback[0] || 'Describe placement and composition.';
 		return (
 			<div className="card p-6 text-center">
 				<div className="mb-2 text-2xl">🎓 Training Complete!</div>
@@ -60,11 +74,12 @@ export default function TrainingMode() {
 	}
 
 	const handleSubmit = async (prompt: string) => {
-		setIsSubmitting(true);
+		setIsScoring(true);
 		try {
-			await handleNextRound(prompt);
+			await scoreCurrentRound(prompt);
+			setLastSubmittedRound(state.round);
 		} finally {
-			setIsSubmitting(false);
+			setIsScoring(false);
 		}
 	};
 
@@ -73,14 +88,33 @@ export default function TrainingMode() {
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center justify-between">
-				<div>
-					<div className="text-sm text-gray-500">🏁 Round {state.round} of 5</div>
-					<h2 className="text-xl font-semibold">{roundTitle}</h2>
+			<div className="space-y-2">
+				<div className="flex items-center justify-between">
+					<div>
+						<div className="text-sm text-gray-500">Training Mode — Round {state.round} of 5</div>
+						<h2 className="text-xl font-semibold">{headerTitle}</h2>
+						<div className="text-sm text-gray-600">{headerSub}</div>
+					</div>
+					<a className="text-sm text-primary-600 hover:underline" href="/play">
+						Single Round
+					</a>
 				</div>
-				<a className="text-sm text-primary-600 hover:underline" href="/play">
-					Single Round
-				</a>
+				{/* Progress Bar */}
+				<div className="w-full rounded-full bg-gray-100">
+					<div
+						className="h-2 rounded-full bg-indigo-500 transition-all"
+						style={{ width: `${progressPct}%` }}
+					/>
+				</div>
+				{/* Blocks */}
+				<div className="flex gap-1">
+					{blocks.map((type, idx) => (
+						<div
+							key={idx}
+							className={`h-2 flex-1 rounded ${type === 'filled' ? 'bg-indigo-500' : 'bg-gray-200'}`}
+						/>
+					))}
+				</div>
 			</div>
 
 			<div className="grid gap-6 md:grid-cols-2">
@@ -95,14 +129,37 @@ export default function TrainingMode() {
 							Gold-standard example: <span className="font-semibold">“{examplePrompt}”</span>
 						</div>
 					) : null}
-					{lastFeedback && state.round > 1 ? (
+					{state.round > 1 && (lastFeedback || true) ? (
 						<div className="mb-3 rounded-md bg-indigo-50 p-3 text-sm text-indigo-800">
-							<span className="font-semibold">Feedback from last round:</span> “{lastFeedback}”
+							<span className="font-semibold">💡 Tip from last round:</span> “{lastFeedback || 'Add details about background or lighting.'}”
 						</div>
 					) : null}
-					<PromptInput onSubmit={handleSubmit} isGenerating={isSubmitting} defaultPrompt={defaultPrompt} />
+					<PromptInput onSubmit={handleSubmit} isGenerating={isScoring} defaultPrompt={defaultPrompt} />
 				</div>
 			</div>
+
+			{/* Feedback + Next Round CTA after scoring */}
+			{lastSubmittedRound === state.round ? (
+				<div className="grid gap-6 md:grid-cols-2">
+					<div className="card p-4">
+						<div className="text-lg">✨ Feedback</div>
+						<div className="mt-2 text-sm text-gray-800">“{lastFeedback || 'You’ve got the idea — specify placement and size.'}”</div>
+						<div className="mt-2 text-sm text-gray-600">Next up: Try refining your description to improve your score.</div>
+					</div>
+					<div className="card flex items-center justify-between gap-4 p-4">
+						<div className="text-sm text-gray-600">Ready for the next round?</div>
+						<button
+							className="btn"
+							onClick={() => {
+								goNextRound();
+								setLastSubmittedRound(null);
+							}}
+						>
+							Next Round ➜
+						</button>
+					</div>
+				</div>
+			) : null}
 		</div>
 	);
 }
