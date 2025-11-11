@@ -16,9 +16,16 @@ const root = process.cwd();
 const tsconfigPath = path.join(root, 'tsconfig.json');
 const tempPath = path.join(root, 'tsconfig.ci.disabled');
 
+let ensuredTs = hasTypescript();
+if (!ensuredTs) {
+	console.warn('[build] typescript not found; attempting to install locally for build...');
+	const install = spawnSync('npm', ['install', 'typescript@5', '--no-save'], { stdio: 'inherit', env: process.env });
+	ensuredTs = install.status === 0 && hasTypescript();
+}
+
 let moved = false;
-if (!hasTypescript() && fs.existsSync(tsconfigPath)) {
-	console.warn('[build] typescript not found; temporarily disabling tsconfig.json for CI build');
+if (!ensuredTs && fs.existsSync(tsconfigPath)) {
+	console.warn('[build] still no typescript; temporarily disabling tsconfig.json for CI build');
 	fs.renameSync(tsconfigPath, tempPath);
 	moved = true;
 }
