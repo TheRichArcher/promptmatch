@@ -88,6 +88,18 @@ export function useTraining(initialSameSet?: { levels: Level[]; images: string[]
 		} catch {}
 	}, [state]);
 
+	// Client-only: ensure target images are generated if missing (SSR returns '')
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		if (!state.targetImages.some((img) => !img)) return;
+		const regenerated = state.levels.map((lvl) => shapeSpecToDataUrl(lvl.spec as any));
+		setState((prev) => ({
+			...prev,
+			targetImages: regenerated,
+		}));
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [state.levels]);
+
 	const resetNewSet = useCallback(() => {
 		const picked = selectRandomTargets(5);
 		setState({

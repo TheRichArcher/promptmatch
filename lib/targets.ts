@@ -7,6 +7,10 @@ export type SelectedTarget = {
 };
 
 export function shapeSpecToDataUrl(spec: ShapeSpec, size = 256): string {
+	// Guard for SSR / build-time prerender
+	if (typeof document === 'undefined') {
+		return '';
+	}
 	const canvas = document.createElement('canvas');
 	canvas.width = size;
 	canvas.height = size;
