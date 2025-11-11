@@ -159,6 +159,8 @@ function parseEmbeddingVectors(json: any): number[][] {
 	// B) { predictions: [ { embeddings: { values: [...] } } ] }
 	// C) { predictions: [ { embeddings: [ { values: [...] } ] } ] }
 	// D) { predictions: [ { imageEmbedding: { values: [...] } } ] }
+	// E) { predictions: [ { imageEmbedding: [...] } ] }
+	// F) { predictions: [ { embeddings: { imageEmbedding: [...] } } ] }
 	const preds = Array.isArray(json?.predictions) ? json.predictions : [];
 	const vectors: number[][] = [];
 	for (const p of preds) {
@@ -167,6 +169,9 @@ function parseEmbeddingVectors(json: any): number[][] {
 			p?.embeddings?.values,
 			Array.isArray(p?.embeddings) ? p.embeddings?.[0]?.values : undefined,
 			p?.imageEmbedding?.values,
+			// Direct arrays without .values
+			Array.isArray(p?.imageEmbedding) ? p.imageEmbedding : undefined,
+			Array.isArray(p?.embeddings?.imageEmbedding) ? p.embeddings.imageEmbedding : undefined,
 		].filter(Boolean);
 		const vec = candidates[0];
 		if (Array.isArray(vec)) {
