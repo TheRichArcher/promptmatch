@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { computeFinalScore, embeddingSimilarity, heuristicPromptBonus, jaccardSimilarity } from '@/lib/scoring';
-import { embedImagesBase64Batch, getOrComputeImageEmbeddingCached, initTargetEmbeddings, dataUrlApproxBytes, cosineSimilarity } from '@/lib/vertex';
+import { embedImagesBase64, initTargetEmbeddings, dataUrlApproxBytes, cosineSimilarity } from '@/lib/vertex';
 import { generatePromptFeedback } from '@/lib/feedback';
 
 export const runtime = 'nodejs';
@@ -41,53 +41,56 @@ export async function POST(req: NextRequest) {
 
 		// Prefer image embeddings via Vertex if both images present and service account is configured
 		if (targetImage && generatedImage && process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && process.env.VERTEX_PROJECT_ID) {
+			// === VERTEX AI SCORING ===
+			let vectors: number[][] = [];
+			let vertexError: string | null = null;
+
 			try {
-				// Try to use cached/precomputed target vector. If not cached, do a single batched call and cache target.
-				let vTarget: number[] | null = null;
-				let vGen: number[] | null = null;
-				try {
-					vTarget = await getOrComputeImageEmbeddingCached(targetImage);
-				} catch {
-					// Not cached yet: we will fall back to batched predict below
-				}
-				if (vTarget) {
-					[vGen] = await embedImagesBase64Batch([generatedImage]);
-				} else {
-					const [vt, vg] = await embedImagesBase64Batch([targetImage, generatedImage]);
-					vTarget = vt;
-					vGen = vg;
-					// Cache the target
-					// getOrComputeImageEmbeddingCached will compute and store; we already have it, so store directly
-					// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-					const { getOrComputeImageEmbeddingCached: _ } = await import('@/lib/vertex'); // no-op import to ensure module initialized
-					// Manually seed cache by calling once (it will hit cache store via compute path)
-					// Avoid duplicate network call by setting directly through internal function is not exposed; acceptable to skip
-				}
-				if (vTarget && vGen) {
-					const sim = cosineSimilarity(vTarget, vGen);
-					similarity01 = Math.max(0, Math.min(1, sim));
-					scoringMode = 'image-embedding';
-				}
+				console.log('[score] Calling Vertex AI with 2 images');
+				vectors = await embedImagesBase64([targetImage, generatedImage]);
+				console.log(`[score] Vertex returned ${vectors.length} vectors`);
 			} catch (e: any) {
-				const vertexError = e?.message ?? String(e);
-				console.error('[score] Vertex image embedding error:', vertexError);
-				// Immediate fallback with visible error message (truncated) to aid diagnosis
-				const similarity01Fallback = jaccardSimilarity(prompt, targetDescription);
-				const bonusFallback = heuristicPromptBonus(prompt);
-				const aiScoreFallback = computeFinalScore(similarity01Fallback, bonusFallback);
-				const feedbackFallback = generatePromptFeedback({ prompt, targetDescription, similarity01: similarity01Fallback });
+				vertexError = e?.message || 'Unknown Vertex error';
+				console.error('[score] VERTEX FAILED:', vertexError);
+			}
+
+			// === FALLBACK IF VERTEX FAILED ===
+			if (vectors.length !== 2 || vertexError) {
+				console.log('[score] Falling back to Jaccard');
+				const simJ = jaccardSimilarity(prompt, targetDescription);
+				const bonus = heuristicPromptBonus(prompt);
+				const aiScore = computeFinalScore(simJ, bonus);
+				const feedback = generatePromptFeedback({ prompt, targetDescription, similarity01: simJ });
 				return NextResponse.json(
 					{
-						aiScore: aiScoreFallback,
-						similarity01: similarity01Fallback,
-						bonus: bonusFallback,
-						feedback: feedbackFallback,
+						aiScore,
+						similarity01: simJ,
+						bonus,
+						feedback,
 						scoringMode: 'jaccard-fallback',
-						errorMessage: vertexError.slice(0, 200),
+						errorMessage: vertexError?.substring(0, 200) || null,
 					},
 					{ status: 200 },
 				);
 			}
+
+			// === SUCCESS: IMAGE EMBEDDING ===
+			const [v1, v2] = vectors;
+			const similarity = cosineSimilarity(v1, v2);
+			const similarityClamped01 = Math.max(0, Math.min(1, (similarity + 1) / 2));
+			const aiScore = Math.round(similarityClamped01 * 100);
+			const feedback = generatePromptFeedback({ prompt, targetDescription, similarity01: similarityClamped01 });
+			return NextResponse.json(
+				{
+					aiScore,
+					similarity01: similarityClamped01,
+					bonus: 0,
+					feedback,
+					scoringMode: 'image-embedding',
+					errorMessage: null,
+				},
+				{ status: 200 },
+			);
 		}
 
 		try {
