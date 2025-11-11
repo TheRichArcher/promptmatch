@@ -39,55 +39,55 @@ export async function POST(req: NextRequest) {
 			}
 		}
 
-		// Prefer image embeddings via Vertex if both images present and service account is configured
-		if (targetImage && generatedImage && process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && process.env.VERTEX_PROJECT_ID) {
-			// === VERTEX AI SCORING ===
+		// Prefer image embeddings via Vertex if both images present (FORCE ENABLED)
+		if (targetImage && generatedImage) {
+			// === VERTEX AI SCORING (FORCE ENABLED) ===
 			let vectors: number[][] = [];
 			let vertexError: string | null = null;
 
 			try {
-				console.log('[score] Calling Vertex AI with 2 images');
+				console.log('[score] FORCING Vertex AI embedding...');
 				vectors = await embedImagesBase64([targetImage, generatedImage]);
-				console.log(`[score] Vertex returned ${vectors.length} vectors`);
+				console.log(`[score] SUCCESS: Got ${vectors.length} vectors, dim=${vectors[0]?.length}`);
 			} catch (e: any) {
-				vertexError = e?.message || 'Unknown Vertex error';
-				console.error('[score] VERTEX FAILED:', vertexError);
+				vertexError = e?.message || 'Vertex failed';
+				console.error('[score] VERTEX ERROR:', vertexError);
 			}
 
-			// === FALLBACK IF VERTEX FAILED ===
-			if (vectors.length !== 2 || vertexError) {
-				console.log('[score] Falling back to Jaccard');
-				const simJ = jaccardSimilarity(prompt, targetDescription);
-				const bonus = heuristicPromptBonus(prompt);
-				const aiScore = computeFinalScore(simJ, bonus);
-				const feedback = generatePromptFeedback({ prompt, targetDescription, similarity01: simJ });
+			// === FORCE IMAGE-EMBEDDING MODE (NO FALLBACK) ===
+			if (vectors.length === 2 && vectors[0].length > 0) {
+				const [v1, v2] = vectors;
+				const similarity = cosineSimilarity(v1, v2);
+				const similarity01 = Math.max(0, Math.min(1, (similarity + 1) / 2));
+				const aiScore = Math.round(similarity01 * 100);
+				const feedback = generatePromptFeedback({ prompt, targetDescription, similarity01 });
 				return NextResponse.json(
 					{
 						aiScore,
-						similarity01: simJ,
-						bonus,
+						similarity01,
+						bonus: 0,
 						feedback,
-						scoringMode: 'jaccard-fallback',
-						errorMessage: vertexError?.substring(0, 200) || null,
+						scoringMode: 'image-embedding',
+						errorMessage: null,
 					},
 					{ status: 200 },
 				);
 			}
 
-			// === SUCCESS: IMAGE EMBEDDING ===
-			const [v1, v2] = vectors;
-			const similarity = cosineSimilarity(v1, v2);
-			const similarityClamped01 = Math.max(0, Math.min(1, (similarity + 1) / 2));
-			const aiScore = Math.round(similarityClamped01 * 100);
-			const feedback = generatePromptFeedback({ prompt, targetDescription, similarity01: similarityClamped01 });
+			// === ONLY FALLBACK IF VERTEX TRULY FAILED ===
+			console.log('[score] Vertex failed, using Jaccard fallback');
+			const simJ = jaccardSimilarity(prompt, targetDescription);
+			const bonus = heuristicPromptBonus(prompt);
+			const aiScore = computeFinalScore(simJ, bonus);
+			const feedback = generatePromptFeedback({ prompt, targetDescription, similarity01: simJ });
 			return NextResponse.json(
 				{
 					aiScore,
-					similarity01: similarityClamped01,
-					bonus: 0,
+					similarity01: simJ,
+					bonus,
 					feedback,
-					scoringMode: 'image-embedding',
-					errorMessage: null,
+					scoringMode: 'jaccard-fallback',
+					errorMessage: vertexError?.substring(0, 200) || null,
 				},
 				{ status: 200 },
 			);
