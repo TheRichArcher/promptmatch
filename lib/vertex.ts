@@ -177,34 +177,63 @@ function parseEmbeddingVectors(json: any): number[][] {
 }
 
 export async function embedImagesBase64Batch(dataUrlsOrBase64: string[]): Promise<number[][]> {
-	if (!PREDICT_URL || !PROJECT_ID) {
+	// Logging per requested style
+	console.log(`[vertex] BATCH: Sending ${dataUrlsOrBase64.length} images to Vertex AI`);
+	const token = await getAccessToken();
+	console.log('[vertex] BATCH: Token acquired');
+
+	if (!PROJECT_ID || !LOCATION) {
 		throw new Error('VERTEX_PROJECT_ID and VERTEX_LOCATION must be configured');
 	}
-	const accessToken = await getAccessToken();
-	console.log('[vertex] Access token acquired');
-	const instances = dataUrlsOrBase64.map((s) => {
-		// Decode to bytes and re-encode to canonical base64 to avoid malformed inputs
-		const buf = decodeBase64ToBuffer(s);
-		return {
-			image: { bytesBase64Encoded: buf.toString('base64') },
-		};
-	});
-	console.log(`[vertex] Sending ${instances.length} images to Vertex AI`);
-	const body = JSON.stringify({ instances });
-	const json = await fetchJsonWithTimeoutRetry(PREDICT_URL, {
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${accessToken}`,
-		},
-		body,
-		timeoutMs: 15_000,
-		retries: 2,
-	});
-	const vectors = parseEmbeddingVectors(json);
-	if (vectors.length !== dataUrlsOrBase64.length) {
-		throw new Error(`vertex predict: expected ${dataUrlsOrBase64.length} vectors, got ${vectors.length}`);
+	const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/multimodalembedding@001:predict`;
+
+	// Build instances using raw base64 from potential data URLs
+	const instances = dataUrlsOrBase64.map((img) => ({
+		image: { bytesBase64Encoded: stripDataUrl(img) },
+	}));
+
+	try {
+		const res = await fetch(endpoint, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({ instances }),
+		});
+
+		const text = await res.text();
+		console.log(`[vertex] BATCH: Status ${res.status} | Response: ${text.substring(0, 500)}`);
+		if (!res.ok) {
+			throw new Error(`Vertex API ${res.status}: ${text.substring(0, 200)}`);
+		}
+
+		let data: any;
+		try {
+			data = JSON.parse(text);
+		} catch {
+			throw new Error(`vertex json parse: ${text}`);
+		}
+
+		// Be liberal in parsing the embedding shape to avoid downstream breakage
+		const preds: any[] = Array.isArray(data?.predictions) ? data.predictions : [];
+		const vectors: number[][] = [];
+		for (const p of preds) {
+			const vec =
+				p?.imageEmbedding?.values ??
+				p?.embeddings?.imageEmbedding?.values ??
+				p?.embeddings?.values ??
+				(Array.isArray(p?.embeddings) ? p.embeddings?.[0]?.values : undefined) ??
+				p?.imageEmbedding;
+			if (Array.isArray(vec)) {
+				vectors.push(vec as number[]);
+			}
+		}
+		return vectors;
+	} catch (e: any) {
+		console.error('[vertex] BATCH FAILED:', e.message ?? String(e));
+		throw e;
 	}
-	return vectors;
 }
 
 export async function embedImageBase64(dataUrlOrBase64: string): Promise<number[]> {
@@ -214,20 +243,9 @@ export async function embedImageBase64(dataUrlOrBase64: string): Promise<number[
 
 // Convenience alias to match expected import name in tests
 export async function embedImagesBase64(images: string[]): Promise<number[][]> {
-	if (images.length === 0) throw new Error('No images provided');
-	if (images.length === 1) {
-		// Duplicate single image to satisfy Vertex batch requirement
-		images = [images[0], images[0]];
-	}
-	try {
-		// Ensure token is retrievable (will be cached on subsequent use)
-		await getAccessToken();
-		console.log('[vertex] Token OK, calling Vertex AI...');
-		return await embedImagesBase64Batch(images);
-	} catch (e: any) {
-		console.error('[vertex] FAILED:', e?.message ?? String(e));
-		throw e;
-	}
+	if (images.length === 0) throw new Error('No images');
+	if (images.length === 1) images = [images[0], images[0]];
+	return await embedImagesBase64Batch(images);
 }
 
 export function cosineSimilarity(a: number[], b: number[]) {
