@@ -3,9 +3,17 @@ export function generateFeedback(
 	prompt: string,
 	score: number,
 ): { note: string; tip: string } {
-	// Congrats path stays the same
-	if (score >= 90) {
-		return { note: 'Mastered!', tip: 'Try Expert Mode' };
+	// High score: give specific finishing touches instead of generic praise
+	if (score > 90) {
+		const t = String(target || '').toLowerCase();
+		const missing: string[] = [];
+		if (t.includes('fog') || t.includes('smoke')) missing.push('fog/smoke');
+		if (t.includes('rain') || t.includes('wet')) missing.push('weather');
+		if (t.includes('reflection') || t.includes('glass')) missing.push('reflections');
+		return {
+			note: missing.length ? `Try adding: ${missing.join(', ')} for 95+` : 'Perfect! Ready for Expert Mode',
+			tip: 'Focus on: atmosphere, weather, reflections',
+		};
 	}
 
 	const targetLower = String(target || '').toLowerCase();
