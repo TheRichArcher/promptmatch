@@ -26,6 +26,9 @@ export default function RootLayout({
 							<a className="hover:text-gray-900" href="/train">
 								Training
 							</a>
+							<a className="hover:text-gray-900" href="/progress">
+								Progress
+							</a>
 						</nav>
 					</header>
 					{children}

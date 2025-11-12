@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import Confetti from 'react-confetti';
 import { pickNextLevel, mostFrequent } from '@/lib/trainingUtils';
+import { saveProgress } from '@/lib/progress';
+import { useRouter } from 'next/navigation';
 
 type Props = {
 	scores: number[];
@@ -17,10 +19,21 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onViewProg
 	const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
 	const topFeedback = mostFrequent(feedback.filter(Boolean));
 	const nextLevel = pickNextLevel(averageScore);
+	const router = useRouter();
 
 	useEffect(() => {
 		const timer = setTimeout(() => setShowConfetti(false), 5000);
 		return () => clearTimeout(timer);
+	}, []);
+
+	useEffect(() => {
+		saveProgress({
+			date: new Date().toISOString(),
+			averageScore,
+			improvement,
+			rounds: 5,
+		});
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	return (
@@ -60,7 +73,7 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onViewProg
 						New Training Set
 					</button>
 					<button
-						onClick={onViewProgress}
+						onClick={() => router.push('/progress')}
 						className="bg-white text-gray-800 px-8 py-3 rounded-xl font-semibold border border-gray-300 hover:bg-gray-50 transition shadow"
 					>
 						View Progress
