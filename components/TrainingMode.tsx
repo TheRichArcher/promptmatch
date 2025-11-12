@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import TrainingSummary from '@/components/TrainingSummary';
+import { getNextTier, getTierFromScore, type Tier } from '@/lib/tiers';
 
 type Target = { prompt: string; imageDataUrl: string };
 type TrainingState = {
@@ -28,6 +29,7 @@ export default function TrainingMode() {
 	const [lastScore, setLastScore] = useState<number | null>(null);
 	const [lastNote, setLastNote] = useState<string>('');
 	const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+	const [tier, setTier] = useState<Tier>('medium');
 
 	// Downscale utility to keep images < ~1.5MB for scoring API
 	function downscaleImage(dataUrl: string, maxDim = 1024, quality = 0.85): Promise<string> {
@@ -57,17 +59,37 @@ export default function TrainingMode() {
 
 	// Load session on mount
 	useEffect(() => {
-		const init = async () => {
-			try {
-				const res = await fetch('/api/train/init', { method: 'POST' });
-				const { targets } = await res.json();
-				setTraining((prev) => ({ ...prev, targets: targets ?? [] }));
-			} finally {
-				setLoading(false);
-			}
-		};
-		void init();
-	}, []);
+		void loadSet({ resetUsed: false, tier });
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [tier]);
+
+	async function loadSet({ resetUsed, tier }: { resetUsed: boolean; tier: Tier }) {
+		setLoading(true);
+		try {
+			const res = await fetch('/api/train/init', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tier, resetUsed }),
+			});
+			const { targets } = await res.json();
+			setTraining((prev) => ({
+				...prev,
+				round: 1,
+				prompts: [],
+				scores: [],
+				feedback: [],
+				targets: targets ?? [],
+				isComplete: false,
+			}));
+			setLastSubmittedRound(null);
+			setLastScore(null);
+			setLastNote('');
+			setPrompt('');
+			setGeneratedImage(null);
+		} finally {
+			setLoading(false);
+		}
+	}
 
 	// Prefill prompt on Round 2
 	useEffect(() => {
@@ -167,8 +189,15 @@ export default function TrainingMode() {
 				scores={training.scores}
 				feedback={training.feedback}
 				targets={training.targets}
-				onNewSet={() => window.location.reload()}
-				onNextTier={() => (window.location.href = '/train')}
+				onNewSet={() => {
+					void loadSet({ resetUsed: false, tier });
+				}}
+				onNextTier={() => {
+					const avg = training.scores.length ? training.scores.reduce((a, b) => a + b, 0) / training.scores.length : 0;
+					const currentTier = getTierFromScore(avg);
+					const next = getNextTier(currentTier);
+					setTier(next);
+				}}
 			/>
 		);
 	}

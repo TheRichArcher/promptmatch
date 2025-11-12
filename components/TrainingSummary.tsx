@@ -5,6 +5,7 @@ import Confetti from 'react-confetti';
 import { mostFrequent } from '@/lib/trainingUtils';
 import { saveProgress } from '@/lib/progress';
 import { useRouter } from 'next/navigation';
+import { getNextTier, getTierFromScore } from '@/lib/tiers';
 
 type Props = {
 	scores: number[];
@@ -32,11 +33,8 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 		return averageScore - (standardDeviation || 0);
 	}, [averageScore, standardDeviation]);
 
-	function getNextTier(avg: number) {
-		if (avg < 70) return 'Beginner → Intermediate';
-		if (avg < 85) return 'Intermediate → Advanced';
-		return 'Advanced → Expert Challenge';
-	}
+	const currentTier = getTierFromScore(averageScore);
+	const nextTier = getNextTier(currentTier);
 
 	useEffect(() => {
 		const timer = setTimeout(() => setShowConfetti(false), 5000);
@@ -102,13 +100,15 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 						className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold hover:scale-105 transition transform shadow-lg"
 					>
 						New Training Set
+						<span className="block text-xs opacity-90">Practice {currentTier} again</span>
 					</button>
 					<button onClick={onNextTier} className="bg-white text-gray-800 px-8 py-3 rounded-xl font-semibold border border-gray-300 hover:bg-gray-50 transition shadow">
 						Next Challenge Tier
+						<span className="block text-xs opacity-80">Unlock {nextTier} →</span>
 					</button>
 				</div>
 
-				<p className="text-sm text-gray-500 mt-6">Next up: <strong className="text-indigo-600">{getNextTier(averageScore)}</strong> – ready to level up?</p>
+				<p className="text-sm text-gray-500 mt-6">Next up: <strong className="text-indigo-600">{nextTier}</strong> – ready to level up?</p>
 				<p className="text-center text-sm text-gray-500 mt-2">
 					<a href="/progress" className="underline">View full progress →</a>
 				</p>
