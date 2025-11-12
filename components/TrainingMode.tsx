@@ -26,6 +26,7 @@ export default function TrainingMode() {
 	const [lastSubmittedRound, setLastSubmittedRound] = useState<number | null>(null);
 	const [lastScore, setLastScore] = useState<number | null>(null);
 	const [lastNote, setLastNote] = useState<string>('');
+	const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
 	// Load session on mount
 	useEffect(() => {
@@ -64,7 +65,8 @@ export default function TrainingMode() {
 			if (!genRes.ok || genJson?.error) {
 				throw new Error(genJson?.error || 'Failed to generate image');
 			}
-			const generatedImage: string | null = genJson?.image ?? genJson?.imageDataUrl ?? null;
+			const genImage: string | null = genJson?.image ?? genJson?.imageDataUrl ?? null;
+			setGeneratedImage(genImage);
 
 			// Score using both images and gold prompt
 			const scoreRes = await fetch('/api/score', {
@@ -74,7 +76,7 @@ export default function TrainingMode() {
 					prompt,
 					targetDescription: currentTarget.prompt,
 					targetImage: currentTarget.imageDataUrl,
-					generatedImage,
+					generatedImage: genImage,
 				}),
 			});
 			const scoreJson = await scoreRes.json();
@@ -102,6 +104,7 @@ export default function TrainingMode() {
 		setLastScore(null);
 		setLastNote('');
 		setPrompt('');
+		setGeneratedImage(null);
 		setTraining((prev) => {
 			const nextRound = prev.round + 1;
 			return {
@@ -201,6 +204,12 @@ export default function TrainingMode() {
 					>
 						{loading ? 'Scoring...' : isRoundScored ? 'Next Round' : 'Generate & Score'}
 					</button>
+					{generatedImage ? (
+						<div className="mt-4">
+							<div className="mb-2 text-sm font-semibold text-gray-700">Your Image</div>
+							<img src={generatedImage} alt="Your generated" className="w-full rounded-lg shadow" />
+						</div>
+					) : null}
 					{isRoundScored ? (
 						<div className="mt-4 rounded border p-4">
 							<div className="text-lg font-semibold">Score: {lastScore ?? 0}</div>
