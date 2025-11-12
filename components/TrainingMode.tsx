@@ -23,6 +23,9 @@ export default function TrainingMode() {
 	});
 	const [prompt, setPrompt] = useState('');
 	const [loading, setLoading] = useState(true);
+	const [lastSubmittedRound, setLastSubmittedRound] = useState<number | null>(null);
+	const [lastScore, setLastScore] = useState<number | null>(null);
+	const [lastNote, setLastNote] = useState<string>('');
 
 	// Load session on mount
 	useEffect(() => {
@@ -81,22 +84,35 @@ export default function TrainingMode() {
 			const aiScore: number = scoreJson?.aiScore ?? 0;
 			const note: string = scoreJson?.feedback?.note ?? '';
 
-			setTraining((prev) => {
-				const nextRound = prev.round + 1;
-				const isComplete = nextRound > 5;
-				return {
-					...prev,
-					prompts: [...prev.prompts, prompt],
-					scores: [...prev.scores, aiScore],
-					feedback: [...prev.feedback, note],
-					round: nextRound,
-					isComplete,
-				};
-			});
+			// Store results but do not advance round yet; show score and Next button
+			setTraining((prev) => ({
+				...prev,
+				prompts: [...prev.prompts, prompt],
+				scores: [...prev.scores, aiScore],
+				feedback: [...prev.feedback, note],
+			}));
+			setLastSubmittedRound(training.round);
+			setLastScore(aiScore);
+			setLastNote(note);
 			setPrompt('');
 		} finally {
 			setLoading(false);
 		}
+	};
+
+	const goNextRound = () => {
+		setLastSubmittedRound(null);
+		setLastScore(null);
+		setLastNote('');
+		setPrompt('');
+		setTraining((prev) => {
+			const nextRound = prev.round + 1;
+			return {
+				...prev,
+				round: nextRound,
+				isComplete: nextRound > 5,
+			};
+		});
 	};
 
 	if (loading && training.round === 1) {
@@ -167,9 +183,18 @@ export default function TrainingMode() {
 						className="w-full p-3 border rounded-lg"
 						rows={4}
 					/>
-					<button onClick={handleSubmit} disabled={!prompt || loading} className="btn mt-3 w-full">
+					<button onClick={handleSubmit} disabled={!prompt || loading || lastSubmittedRound === training.round} className="btn mt-3 w-full">
 						{loading ? 'Scoring...' : 'Generate & Score'}
 					</button>
+					{lastSubmittedRound === training.round ? (
+						<div className="mt-4 rounded border p-4">
+							<div className="text-lg font-semibold">Score: {lastScore ?? 0}</div>
+							{lastNote ? <div className="mt-1 text-sm text-gray-700">{lastNote}</div> : null}
+							<button className="btn mt-3 w-full" onClick={goNextRound}>
+								Next Round
+							</button>
+						</div>
+					) : null}
 				</div>
 			</div>
 		</div>
