@@ -12,16 +12,19 @@ type Props = {
 	feedback: string[];
 	onNewSet: () => void;
 	onNextTier: () => void;
-	targets: { imageDataUrl: string }[];
+	userPrompts: string[];
+	targets: { imageDataUrl: string; goldToken: string }[];
 	generatedImages: (string | null)[];
 	lastSuggestion?: string;
 	lastTip?: string;
 };
 
-export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier, targets, generatedImages, lastSuggestion, lastTip }: Props) {
+export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier, userPrompts, targets, generatedImages, lastSuggestion, lastTip }: Props) {
 	const [showConfetti, setShowConfetti] = useState(true);
 	const [loadingTier, setLoadingTier] = useState(false);
 	const [showToast, setShowToast] = useState(false);
+	const [goldPrompts, setGoldPrompts] = useState<(string | null)[]>([]);
+	const [goldAllowed, setGoldAllowed] = useState(false);
 	const improvement = useMemo(() => {
 		if (!scores || scores.length < 2) return 0;
 		const first = scores[0] ?? 0;
@@ -60,6 +63,28 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 		});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
+
+	// Fetch Gold Prompts only after completion
+	useEffect(() => {
+		const tokens = targets.map((t) => t.goldToken);
+		if (tokens.length === 0) return;
+		(async () => {
+			try {
+				const res = await fetch('/api/train/summary', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ tokens }),
+				});
+				const data = await res.json();
+				if (res.ok && !data?.error) {
+					setGoldAllowed(Boolean(data?.allowed));
+					setGoldPrompts(Array.isArray(data?.goldPrompts) ? data.goldPrompts : []);
+				}
+			} catch {
+				// ignore
+			}
+		})();
+	}, [targets]);
 
 	return (
 		<div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-2xl animate-fadeIn">
@@ -116,6 +141,22 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 							</div>
 							<p className="text-xs font-bold mt-1">{scores[i] ?? '-'}</p>
 							<p className="text-xs text-gray-600">{feedback[i] ?? ''}</p>
+							{/* Learning moment - user prompt + gold prompt */}
+							<div className="mt-1 text-[10px] text-gray-700">
+								{scores[i] >= 90 ? (
+									<p className="font-medium">Matched Gold Prompt</p>
+								) : (
+									<p><span className="font-medium">Your prompt:</span> {userPrompts?.[i] ?? ''}</p>
+								)}
+							</div>
+							{goldAllowed && goldPrompts?.[i] ? (
+								<div className="mt-1 text-[10px] text-gray-700">
+									<span className="inline-block mr-1" aria-hidden="true">💡</span>
+									<span className="sr-only">Learning moment: </span>
+									<span className="font-medium">Ideal prompt: </span>
+									<span>{goldPrompts[i]}</span>
+								</div>
+							) : null}
 						</div>
 					))}
 				</div>

@@ -20,6 +20,10 @@ pnpm install || yarn || npm install
 ```
 GOOGLE_API_KEY=your_google_ai_studio_key_here
 NEXT_PUBLIC_APP_NAME=PromptMatch
+# Reveal “Gold Prompts” only after completion (optional)
+SHOW_GOLD_PROMPTS_AFTER_TRAIN=true
+# Secret for sealing gold prompts on the server (optional; defaults to a dev secret)
+GOLD_PROMPT_SECRET=change_me_to_a_random_long_string
 ```
 - Without a key, scoring will fall back to a prompt-text similarity so you can still train offline.
 

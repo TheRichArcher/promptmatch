@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { computeFinalScore, heuristicPromptBonus, jaccardSimilarity } from '@/lib/scoring';
 import { embedImagesBase64, initTargetEmbeddings, dataUrlApproxBytes, cosineSimilarity } from '@/lib/vertex';
 import { generateFeedback } from '@/lib/feedbackEngine';
+import { unsealGoldPrompt } from '@/lib/secureText';
 
 export const runtime = 'nodejs';
 
@@ -12,12 +13,21 @@ export async function POST(req: NextRequest) {
 	try {
 		const body = await req.json();
 		const prompt = String(body?.prompt ?? '');
-		const targetDescription = String(body?.targetDescription ?? '');
+		let targetDescription = String(body?.targetDescription ?? '');
+		const targetToken = typeof body?.targetToken === 'string' ? (body.targetToken as string) : '';
 		const targetImage = typeof body?.targetImage === 'string' ? (body.targetImage as string) : '';
 		const generatedImage = typeof body?.generatedImage === 'string' ? (body.generatedImage as string) : '';
 
-		if (!prompt || !targetDescription) {
-			return NextResponse.json({ error: 'Missing prompt or targetDescription' }, { status: 400 });
+		if (!prompt || (!targetDescription && !targetToken)) {
+			return NextResponse.json({ error: 'Missing prompt or target reference' }, { status: 400 });
+		}
+		// Prefer server-side unsealing if token provided
+		if (!targetDescription && targetToken) {
+			try {
+				targetDescription = unsealGoldPrompt(targetToken);
+			} catch {
+				return NextResponse.json({ error: 'Invalid target token' }, { status: 400 });
+			}
 		}
 
 		const apiKey = process.env.GOOGLE_API_KEY;

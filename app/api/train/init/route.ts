@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { selectRandomTargets } from '@/lib/trainingTargets';
 import type { Tier } from '@/lib/tiers';
 import { clearUsedImages, fileToDataUrl, pickUniqueImages } from '@/lib/tieredTargets';
+import { sealGoldPrompt } from '@/lib/secureText';
 
 export const runtime = 'nodejs';
 
@@ -26,10 +27,13 @@ export async function POST(req: NextRequest) {
 		const projectRoot = process.cwd();
 		const picks = await pickUniqueImages(projectRoot, tier, 5);
 		if (picks.length > 0) {
-			const targets = picks.map(({ abs, label }) => ({
-				prompt: label, // lightweight description derived from filename
-				imageDataUrl: fileToDataUrl(abs),
-			}));
+			const targets = picks.map(({ abs, label }) => {
+				const goldToken = sealGoldPrompt(label);
+				return {
+					goldToken,
+					imageDataUrl: fileToDataUrl(abs),
+				};
+			});
 			return NextResponse.json({ targets, tier }, { status: 200 });
 		}
 
@@ -48,7 +52,7 @@ export async function POST(req: NextRequest) {
 				if (!res.ok) throw new Error(data?.error || 'Failed to generate image');
 				const imageDataUrl: string | null = data?.image ?? data?.imageDataUrl ?? null;
 				if (!imageDataUrl) throw new Error('No image data returned from /api/generate');
-				return { prompt, imageDataUrl };
+				return { goldToken: sealGoldPrompt(prompt), imageDataUrl };
 			}),
 		);
 
