@@ -99,7 +99,7 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 				<div className="grid grid-cols-5 gap-3 mt-2">
 					{targets.map((t, i) => (
 						<div key={i} className="text-center">
-							<div className="grid grid-cols-2 gap-1">
+							<div className="flex flex-col gap-1">
 								<img src={t.imageDataUrl} className="w-full h-24 object-cover rounded" />
 								{generatedImages?.[i] ? (
 									<img src={generatedImages[i] as string} className="w-full h-24 object-cover rounded" />
