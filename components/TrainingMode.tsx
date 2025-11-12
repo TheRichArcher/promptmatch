@@ -107,7 +107,6 @@ export default function TrainingMode() {
 	}, [training.round]);
 
 	const currentTarget = training.targets[training.round - 1];
-	const lastFeedback = training.feedback[training.feedback.length - 1] || '';
 
 	const handleSubmit = async () => {
 		if (!currentTarget || !prompt || loading) return;
@@ -241,9 +240,6 @@ export default function TrainingMode() {
 									<summary className="font-medium cursor-pointer">Gold Prompt (90+ Score)</summary>
 									<code className="block mt-2 text-xs text-gray-700">{currentTarget.prompt}</code>
 								</details>
-							) : null}
-							{lastFeedback && training.round > 1 && (!isProd || lastFeedback !== 'Mastered!') ? (
-								<p className="text-sm italic text-gray-600 mb-2">Feedback: {lastFeedback}</p>
 							) : null}
 							<textarea
 								value={prompt}
