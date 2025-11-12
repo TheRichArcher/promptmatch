@@ -166,8 +166,9 @@ export default function TrainingMode() {
 			<TrainingSummary
 				scores={training.scores}
 				feedback={training.feedback}
+				targets={training.targets}
 				onNewSet={() => window.location.reload()}
-				onViewProgress={() => alert('Coming soon: Your progress dashboard!')}
+				onNextTier={() => (window.location.href = '/train')}
 			/>
 		);
 	}
@@ -226,7 +227,7 @@ export default function TrainingMode() {
 								disabled={loading}
 								className="btn mt-3 w-full"
 							>
-								Next Round
+								{training.round === 5 ? 'View Results' : 'Next Round'}
 							</button>
 							{isRoundScored ? (
 								<div className="mt-4 rounded border p-4">

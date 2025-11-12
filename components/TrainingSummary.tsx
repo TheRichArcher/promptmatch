@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Confetti from 'react-confetti';
-import { pickNextLevel, mostFrequent } from '@/lib/trainingUtils';
+import { mostFrequent } from '@/lib/trainingUtils';
 import { saveProgress } from '@/lib/progress';
 import { useRouter } from 'next/navigation';
 
@@ -10,16 +10,33 @@ type Props = {
 	scores: number[];
 	feedback: string[];
 	onNewSet: () => void;
-	onViewProgress: () => void;
+	onNextTier: () => void;
+	targets: { imageDataUrl: string }[];
 };
 
-export default function TrainingSummary({ scores, feedback, onNewSet, onViewProgress }: Props) {
+export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier, targets }: Props) {
 	const [showConfetti, setShowConfetti] = useState(true);
 	const improvement = scores[4] - scores[0];
 	const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
 	const topFeedback = mostFrequent(feedback.filter(Boolean));
-	const nextLevel = pickNextLevel(averageScore);
 	const router = useRouter();
+
+	const standardDeviation = useMemo(() => {
+		if (!scores.length) return 0;
+		const mean = averageScore;
+		const variance = scores.reduce((acc, s) => acc + Math.pow(s - mean, 2), 0) / scores.length;
+		return Math.sqrt(variance);
+	}, [scores, averageScore]);
+
+	const consistency = useMemo(() => {
+		return averageScore - (standardDeviation || 0);
+	}, [averageScore, standardDeviation]);
+
+	function getNextTier(avg: number) {
+		if (avg < 70) return 'Beginner → Intermediate';
+		if (avg < 85) return 'Intermediate → Advanced';
+		return 'Advanced → Expert Challenge';
+	}
 
 	useEffect(() => {
 		const timer = setTimeout(() => setShowConfetti(false), 5000);
@@ -59,6 +76,20 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onViewProg
 					</div>
 				</div>
 
+				<div className="text-center p-3 bg-white/70 rounded-xl inline-block shadow">
+					<p className="text-sm">Consistency Score: <strong>{consistency.toFixed(1)}</strong></p>
+				</div>
+
+				<div className="grid grid-cols-5 gap-3 mt-2">
+					{targets.map((t, i) => (
+						<div key={i} className="text-center">
+							<img src={t.imageDataUrl} className="w-full h-24 object-cover rounded" />
+							<p className="text-xs font-bold mt-1">{scores[i] ?? '-'}</p>
+							<p className="text-xs text-gray-600">{feedback[i] ? `${feedback[i].slice(0, 20)}...` : ''}</p>
+						</div>
+					))}
+				</div>
+
 				{topFeedback ? (
 					<div className="mx-auto max-w-md">
 						<p className="text-sm italic text-gray-700 bg-white/70 rounded-xl p-4 shadow">“{topFeedback}”</p>
@@ -72,16 +103,14 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onViewProg
 					>
 						New Training Set
 					</button>
-					<button
-						onClick={() => router.push('/progress')}
-						className="bg-white text-gray-800 px-8 py-3 rounded-xl font-semibold border border-gray-300 hover:bg-gray-50 transition shadow"
-					>
-						View Progress
+					<button onClick={onNextTier} className="bg-white text-gray-800 px-8 py-3 rounded-xl font-semibold border border-gray-300 hover:bg-gray-50 transition shadow">
+						Next Challenge Tier
 					</button>
 				</div>
 
-				<p className="text-sm text-gray-500 mt-6">
-					Next up: <strong className="text-indigo-600">{nextLevel}</strong> – ready to level up?
+				<p className="text-sm text-gray-500 mt-6">Next up: <strong className="text-indigo-600">{getNextTier(averageScore)}</strong> – ready to level up?</p>
+				<p className="text-center text-sm text-gray-500 mt-2">
+					<a href="/progress" className="underline">View full progress →</a>
 				</p>
 			</div>
 		</div>
