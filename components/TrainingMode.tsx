@@ -28,6 +28,32 @@ export default function TrainingMode() {
 	const [lastNote, setLastNote] = useState<string>('');
 	const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
+	// Downscale utility to keep images < ~1.5MB for scoring API
+	function downscaleImage(dataUrl: string, maxDim = 1024, quality = 0.85): Promise<string> {
+		return new Promise((resolve) => {
+			const img = new Image();
+			img.onload = () => {
+				const canvas = document.createElement('canvas');
+				let width = (img as HTMLImageElement).width;
+				let height = (img as HTMLImageElement).height;
+				if (width > height && width > maxDim) {
+					height = Math.round((height * maxDim) / width);
+					width = maxDim;
+				} else if (height > maxDim) {
+					width = Math.round((width * maxDim) / height);
+					height = maxDim;
+				}
+				canvas.width = width;
+				canvas.height = height;
+				const ctx = canvas.getContext('2d')!;
+				ctx.drawImage(img, 0, 0, width, height);
+				// Use JPEG with quality limiter; helps ensure under size cap
+				resolve(canvas.toDataURL('image/jpeg', quality));
+			};
+			img.src = dataUrl;
+		});
+	}
+
 	// Load session on mount
 	useEffect(() => {
 		const init = async () => {
@@ -65,17 +91,19 @@ export default function TrainingMode() {
 			if (!genRes.ok || genJson?.error) {
 				throw new Error(genJson?.error || 'Failed to generate image');
 			}
-			const genImage: string | null = genJson?.image ?? genJson?.imageDataUrl ?? null;
-			setGeneratedImage(genImage);
+			const genImageRaw: string | null = genJson?.image ?? genJson?.imageDataUrl ?? null;
+			const genImage = genImageRaw ? await downscaleImage(genImageRaw, 1024, 0.85) : null;
+			setGeneratedImage(genImage ?? null);
 
 			// Score using both images and gold prompt
+			const targetDown = await downscaleImage(currentTarget.imageDataUrl, 1024, 0.85);
 			const scoreRes = await fetch('/api/score', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					prompt,
 					targetDescription: currentTarget.prompt,
-					targetImage: currentTarget.imageDataUrl,
+					targetImage: targetDown,
 					generatedImage: genImage,
 				}),
 			});
