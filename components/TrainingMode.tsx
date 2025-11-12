@@ -162,6 +162,10 @@ export default function TrainingMode() {
 	};
 
 	const goNextRound = () => {
+		// Safety: do not advance unless the current round has been scored
+		if (lastSubmittedRound !== training.round) {
+			return;
+		}
 		setLastSubmittedRound(null);
 		setLastScore(null);
 		setLastNote('');

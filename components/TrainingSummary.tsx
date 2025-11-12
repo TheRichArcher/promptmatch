@@ -22,7 +22,12 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 	const [showConfetti, setShowConfetti] = useState(true);
 	const [loadingTier, setLoadingTier] = useState(false);
 	const [showToast, setShowToast] = useState(false);
-	const improvement = scores[4] - scores[0];
+	const improvement = useMemo(() => {
+		if (!scores || scores.length < 2) return 0;
+		const first = scores[0] ?? 0;
+		const last = scores[scores.length - 1] ?? first;
+		return last - first;
+	}, [scores]);
 	const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
 	const topFeedback = mostFrequent(feedback.filter(Boolean));
 	const router = useRouter();
