@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import TrainingSummary from '@/components/TrainingSummary';
 
 type Target = { prompt: string; imageDataUrl: string };
 type TrainingState = {
@@ -161,22 +162,13 @@ export default function TrainingMode() {
 	}
 
 	if (training.isComplete) {
-		const first = training.scores[0] ?? 0;
-		const last = training.scores[training.scores.length - 1] ?? first;
-		const improvement = last - first;
-		const avg =
-			training.scores.length > 0
-				? (training.scores.reduce((a, b) => a + b, 0) / training.scores.length).toFixed(1)
-				: '0.0';
 		return (
-			<div className="text-center p-8 bg-green-50 rounded-xl">
-				<h2 className="text-3xl font-bold mb-4">Training Complete!</h2>
-				<p className="text-2xl">+{improvement} point improvement</p>
-				<p className="text-xl">Average Score: {avg}</p>
-				<button onClick={() => window.location.reload()} className="btn mt-6">
-					New Training Set
-				</button>
-			</div>
+			<TrainingSummary
+				scores={training.scores}
+				feedback={training.feedback}
+				onNewSet={() => window.location.reload()}
+				onViewProgress={() => alert('Coming soon: Your progress dashboard!')}
+			/>
 		);
 	}
 
