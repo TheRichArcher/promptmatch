@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { computeFinalScore, heuristicPromptBonus, jaccardSimilarity } from '@/lib/scoring';
 import { embedImagesBase64, initTargetEmbeddings, dataUrlApproxBytes, cosineSimilarity } from '@/lib/vertex';
-import { generatePromptFeedback } from '@/lib/feedback';
+import { generateFeedback } from '@/lib/feedbackEngine';
 
 export const runtime = 'nodejs';
 
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 				const similarity = cosineSimilarity(v1, v2);
 				const similarity01 = Math.max(0, Math.min(1, (similarity + 1) / 2));
 				const aiScore = Math.round(similarity01 * 100);
-				const feedback = generatePromptFeedback({ prompt, targetDescription, similarity01 });
+				const feedback = generateFeedback(targetDescription, prompt, aiScore);
 				return NextResponse.json(
 					{
 						aiScore,
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
 			const simJ = jaccardSimilarity(prompt, targetDescription);
 			const bonus = heuristicPromptBonus(prompt);
 			const aiScore = computeFinalScore(simJ, bonus);
-			const feedback = generatePromptFeedback({ prompt, targetDescription, similarity01: simJ });
+			const feedback = generateFeedback(targetDescription, prompt, aiScore);
 			return NextResponse.json(
 				{
 					aiScore,
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
 		const bonus = heuristicPromptBonus(prompt);
 		const aiScore = computeFinalScore(similarity01, bonus);
-		const feedback = generatePromptFeedback({ prompt, targetDescription, similarity01 });
+		const feedback = generateFeedback(targetDescription, prompt, aiScore);
 
 		return NextResponse.json(
 			{

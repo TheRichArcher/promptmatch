@@ -11,6 +11,7 @@ type TrainingState = {
 	scores: number[];
 	feedback: string[];
 	targets: Target[];
+	generatedImages: (string | null)[];
 	isComplete: boolean;
 };
 
@@ -21,6 +22,7 @@ export default function TrainingMode() {
 		scores: [],
 		feedback: [],
 		targets: [],
+		generatedImages: [],
 		isComplete: false,
 	});
 	const [prompt, setPrompt] = useState('');
@@ -28,6 +30,7 @@ export default function TrainingMode() {
 	const [lastSubmittedRound, setLastSubmittedRound] = useState<number | null>(null);
 	const [lastScore, setLastScore] = useState<number | null>(null);
 	const [lastNote, setLastNote] = useState<string>('');
+	const [lastTip, setLastTip] = useState<string>('');
 	const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 	const [tier, setTier] = useState<Tier>('medium');
 
@@ -79,6 +82,7 @@ export default function TrainingMode() {
 				scores: [],
 				feedback: [],
 				targets: targets ?? [],
+				generatedImages: [],
 				isComplete: false,
 			}));
 			setLastSubmittedRound(null);
@@ -133,6 +137,7 @@ export default function TrainingMode() {
 			const scoreJson = await scoreRes.json();
 			const aiScore: number = scoreJson?.aiScore ?? 0;
 			const note: string = scoreJson?.feedback?.note ?? '';
+			const tip: string = scoreJson?.feedback?.tip ?? '';
 
 			// Store results but do not advance round yet; show score and Next button
 			setTraining((prev) => ({
@@ -140,10 +145,12 @@ export default function TrainingMode() {
 				prompts: [...prev.prompts, prompt],
 				scores: [...prev.scores, aiScore],
 				feedback: [...prev.feedback, note],
+				generatedImages: [...prev.generatedImages, genImage ?? null],
 			}));
 			setLastSubmittedRound(training.round);
 			setLastScore(aiScore);
 			setLastNote(note);
+			setLastTip(tip);
 			setPrompt('');
 		} finally {
 			setLoading(false);
@@ -189,6 +196,9 @@ export default function TrainingMode() {
 				scores={training.scores}
 				feedback={training.feedback}
 				targets={training.targets}
+				generatedImages={training.generatedImages}
+				lastSuggestion={lastNote}
+				lastTip={lastTip}
 				onNewSet={() => {
 					void loadSet({ resetUsed: false, tier });
 				}}
@@ -261,7 +271,12 @@ export default function TrainingMode() {
 							{isRoundScored ? (
 								<div className="mt-4 rounded border p-4">
 									<div className="text-lg font-semibold">Score: {lastScore ?? 0}</div>
-									{lastNote ? <div className="mt-1 text-sm text-gray-700">{lastNote}</div> : null}
+									{lastNote || lastTip ? (
+										<div className="mt-3 p-3 bg-blue-50 rounded-lg text-sm">
+											<strong>Suggestion:</strong> {lastNote}
+											{lastTip ? <p className="text-xs text-blue-600 mt-1">Tip: {lastTip}</p> : null}
+										</div>
+									) : null}
 								</div>
 							) : null}
 						</>

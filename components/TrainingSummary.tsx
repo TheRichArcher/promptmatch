@@ -13,10 +13,15 @@ type Props = {
 	onNewSet: () => void;
 	onNextTier: () => void;
 	targets: { imageDataUrl: string }[];
+	generatedImages: (string | null)[];
+	lastSuggestion?: string;
+	lastTip?: string;
 };
 
-export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier, targets }: Props) {
+export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier, targets, generatedImages, lastSuggestion, lastTip }: Props) {
 	const [showConfetti, setShowConfetti] = useState(true);
+	const [loadingTier, setLoadingTier] = useState(false);
+	const [showToast, setShowToast] = useState(false);
 	const improvement = scores[4] - scores[0];
 	const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
 	const topFeedback = mostFrequent(feedback.filter(Boolean));
@@ -53,6 +58,11 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 
 	return (
 		<div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-2xl animate-fadeIn">
+			{showToast ? (
+				<div className="fixed bottom-4 right-4 bg-green-600 text-white p-3 rounded-lg shadow-lg animate-fadeIn">
+					{nextTier} unlocked!
+				</div>
+			) : null}
 			{showConfetti ? (
 				<Confetti width={window.innerWidth} height={window.innerHeight} recycle={false} numberOfPieces={200} />
 			) : null}
@@ -78,10 +88,27 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 					<p className="text-sm">Consistency Score: <strong>{consistency.toFixed(1)}</strong></p>
 				</div>
 
+				{lastSuggestion || lastTip ? (
+					<div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl">
+						<p className="font-medium">Suggestion:</p>
+						{lastSuggestion ? <p className="text-sm">“{lastSuggestion}”</p> : null}
+						{lastTip ? <p className="text-xs text-blue-600 mt-1">Tip: {lastTip}</p> : null}
+					</div>
+				) : null}
+
 				<div className="grid grid-cols-5 gap-3 mt-2">
 					{targets.map((t, i) => (
 						<div key={i} className="text-center">
-							<img src={t.imageDataUrl} className="w-full h-24 object-cover rounded" />
+							<div className="grid grid-cols-2 gap-1">
+								<img src={t.imageDataUrl} className="w-full h-24 object-cover rounded" />
+								{generatedImages?.[i] ? (
+									<img src={generatedImages[i] as string} className="w-full h-24 object-cover rounded" />
+								) : (
+									<div className="w-full h-24 rounded bg-gray-100 text-gray-400 text-[10px] flex items-center justify-center">
+										No image
+									</div>
+								)}
+							</div>
 							<p className="text-xs font-bold mt-1">{scores[i] ?? '-'}</p>
 							<p className="text-xs text-gray-600">{feedback[i] ? `${feedback[i].slice(0, 20)}...` : ''}</p>
 						</div>
@@ -102,9 +129,30 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 						New Training Set
 						<span className="block text-xs opacity-90">Practice {currentTier} again</span>
 					</button>
-					<button onClick={onNextTier} className="bg-white text-gray-800 px-8 py-3 rounded-xl font-semibold border border-gray-300 hover:bg-gray-50 transition shadow">
-						Next Challenge Tier
-						<span className="block text-xs opacity-80">Unlock {nextTier} →</span>
+					<button
+						onClick={async () => {
+							if (loadingTier) return;
+							setLoadingTier(true);
+							await new Promise((r) => setTimeout(r, 800));
+							onNextTier();
+							setLoadingTier(false);
+							setShowToast(true);
+							setTimeout(() => setShowToast(false), 2000);
+						}}
+						disabled={loadingTier}
+						className="bg-white text-gray-800 px-8 py-3 rounded-xl font-semibold border border-gray-300 hover:bg-gray-50 transition shadow relative disabled:opacity-75"
+					>
+						{loadingTier ? (
+							<>
+								<span className="inline-block animate-spin mr-2">⏳</span>
+								Loading {nextTier}...
+							</>
+						) : (
+							<>
+								Next Challenge Tier
+								<span className="block text-xs opacity-80">Unlock {nextTier} →</span>
+							</>
+						)}
 					</button>
 				</div>
 
