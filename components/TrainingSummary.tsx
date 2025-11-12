@@ -56,7 +56,7 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 			date: new Date().toISOString(),
 			averageScore,
 			improvement,
-			rounds: 5,
+			rounds: scores.length,
 		});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);

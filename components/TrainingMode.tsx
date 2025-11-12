@@ -13,6 +13,7 @@ type TrainingState = {
 	targets: Target[];
 	generatedImages: (string | null)[];
 	isComplete: boolean;
+	roundsTotal: number;
 };
 
 export default function TrainingMode() {
@@ -24,6 +25,7 @@ export default function TrainingMode() {
 		targets: [],
 		generatedImages: [],
 		isComplete: false,
+		roundsTotal: 5,
 	});
 	const isProd = process.env.NODE_ENV === 'production';
 	const showGoldPrompt = !isProd;
@@ -88,6 +90,7 @@ export default function TrainingMode() {
 				targets: targets ?? [],
 				generatedImages: [],
 				isComplete: false,
+				roundsTotal: Math.max(1, Array.isArray(targets) ? targets.length : 5),
 			}));
 			setLastSubmittedRound(null);
 			setLastScore(null);
@@ -176,7 +179,7 @@ export default function TrainingMode() {
 			return {
 				...prev,
 				round: nextRound,
-				isComplete: nextRound > 5,
+				isComplete: nextRound > prev.roundsTotal,
 			};
 		});
 	};
@@ -223,7 +226,7 @@ export default function TrainingMode() {
 	return (
 		<div className="max-w-5xl mx-auto">
 			<div className="text-center mb-6">
-				<h2 className="text-2xl font-bold">Round {training.round} of 5</h2>
+				<h2 className="text-2xl font-bold">Round {training.round} of {training.roundsTotal}</h2>
 			</div>
 
 			{/* Images Row with Prompt/Result on the right */}
@@ -271,7 +274,7 @@ export default function TrainingMode() {
 								disabled={loading}
 								className="btn mt-3 w-full"
 							>
-								{training.round === 5 ? 'View Results' : 'Next Round'}
+								{training.round === training.roundsTotal ? 'View Results' : 'Next Round'}
 							</button>
 							{isRoundScored ? (
 								<div className="mt-4 rounded border p-4">
