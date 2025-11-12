@@ -27,6 +27,7 @@ export default function TrainingMode() {
 	});
 	const isProd = process.env.NODE_ENV === 'production';
 	const showGoldPrompt = !isProd;
+	const [initializing, setInitializing] = useState(true);
 	const [prompt, setPrompt] = useState('');
 	const [loading, setLoading] = useState(true);
 	const [lastSubmittedRound, setLastSubmittedRound] = useState<number | null>(null);
@@ -69,6 +70,7 @@ export default function TrainingMode() {
 	}, [tier]);
 
 	async function loadSet({ resetUsed, tier }: { resetUsed: boolean; tier: Tier }) {
+		setInitializing(true);
 		setLoading(true);
 		try {
 			const res = await fetch('/api/train/init', {
@@ -94,6 +96,7 @@ export default function TrainingMode() {
 			setGeneratedImage(null);
 		} finally {
 			setLoading(false);
+			setInitializing(false);
 		}
 	}
 
@@ -188,7 +191,7 @@ export default function TrainingMode() {
 		}
 	}
 
-	if (loading && training.round === 1) {
+	if (initializing && training.round === 1) {
 		return <p className="text-center">Generating training images...</p>;
 	}
 
