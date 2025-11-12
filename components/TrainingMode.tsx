@@ -25,6 +25,8 @@ export default function TrainingMode() {
 		generatedImages: [],
 		isComplete: false,
 	});
+	const isProd = process.env.NODE_ENV === 'production';
+	const showGoldPrompt = !isProd;
 	const [prompt, setPrompt] = useState('');
 	const [loading, setLoading] = useState(true);
 	const [lastSubmittedRound, setLastSubmittedRound] = useState<number | null>(null);
@@ -231,13 +233,13 @@ export default function TrainingMode() {
 						<div className="w-full">
 							{/* Guidance and tips inline */}
 							{training.round === 2 ? <p className="text-sm text-green-600 mb-2">Use your Round 1 learnings to improve.</p> : null}
-							{training.round === 3 && currentTarget ? (
+							{showGoldPrompt && training.round === 3 && currentTarget ? (
 								<details className="mb-3 p-3 bg-amber-50 rounded border">
 									<summary className="font-medium cursor-pointer">Gold Prompt (90+ Score)</summary>
 									<code className="block mt-2 text-xs text-gray-700">{currentTarget.prompt}</code>
 								</details>
 							) : null}
-							{lastFeedback && training.round > 1 ? (
+							{lastFeedback && training.round > 1 && (!isProd || lastFeedback !== 'Mastered!') ? (
 								<p className="text-sm italic text-gray-600 mb-2">Feedback: {lastFeedback}</p>
 							) : null}
 							<textarea
