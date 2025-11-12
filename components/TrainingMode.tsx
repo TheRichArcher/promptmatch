@@ -43,12 +43,9 @@ export default function TrainingMode() {
 
 	// Prefill prompt on Round 2
 	useEffect(() => {
-		if (training.round === 2 && training.prompts.length >= 1) {
-			setPrompt(training.prompts[0] || '');
-		} else if (training.round !== 2) {
-			setPrompt('');
-		}
-	}, [training.round, training.prompts]);
+		// Clear the input whenever the round changes
+		setPrompt('');
+	}, [training.round]);
 
 	const currentTarget = training.targets[training.round - 1];
 	const lastFeedback = training.feedback[training.feedback.length - 1] || '';
@@ -115,6 +112,19 @@ export default function TrainingMode() {
 		});
 	};
 
+	const isRoundScored = lastSubmittedRound === training.round;
+
+	function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			if (isRoundScored) {
+				goNextRound();
+			} else if (!loading && prompt.trim()) {
+				void handleSubmit();
+			}
+		}
+	}
+
 	if (loading && training.round === 1) {
 		return <p className="text-center">Generating training images...</p>;
 	}
@@ -158,9 +168,9 @@ export default function TrainingMode() {
 				<div>
 					<h3 className="font-semibold mb-2">Your Prompt</h3>
 
-					{/* Round 2: Preload last prompt */}
+					{/* Round guidance */}
 					{training.round === 2 ? (
-						<p className="text-sm text-green-600 mb-2">Edit your Round 1 prompt using the feedback</p>
+						<p className="text-sm text-green-600 mb-2">Use your Round 1 learnings to improve.</p>
 					) : null}
 
 					{/* Round 3: Show gold prompt */}
@@ -179,20 +189,22 @@ export default function TrainingMode() {
 					<textarea
 						value={prompt}
 						onChange={(e) => setPrompt(e.target.value)}
+						onKeyDown={handleKeyDown}
 						placeholder="Describe what you see..."
 						className="w-full p-3 border rounded-lg"
 						rows={4}
 					/>
-					<button onClick={handleSubmit} disabled={!prompt || loading || lastSubmittedRound === training.round} className="btn mt-3 w-full">
-						{loading ? 'Scoring...' : 'Generate & Score'}
+					<button
+						onClick={isRoundScored ? goNextRound : handleSubmit}
+						disabled={loading || (!isRoundScored && !prompt)}
+						className="btn mt-3 w-full"
+					>
+						{loading ? 'Scoring...' : isRoundScored ? 'Next Round' : 'Generate & Score'}
 					</button>
-					{lastSubmittedRound === training.round ? (
+					{isRoundScored ? (
 						<div className="mt-4 rounded border p-4">
 							<div className="text-lg font-semibold">Score: {lastScore ?? 0}</div>
 							{lastNote ? <div className="mt-1 text-sm text-gray-700">{lastNote}</div> : null}
-							<button className="btn mt-3 w-full" onClick={goNextRound}>
-								Next Round
-							</button>
 						</div>
 					) : null}
 				</div>
