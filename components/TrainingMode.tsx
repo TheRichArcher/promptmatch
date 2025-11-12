@@ -38,6 +38,7 @@ export default function TrainingMode() {
 	const [lastTip, setLastTip] = useState<string>('');
 	const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 	const [tier, setTier] = useState<Tier>('medium');
+	const [errorMsg, setErrorMsg] = useState<string>('');
 
 	// Downscale utility to keep images < ~1.5MB for scoring API
 	function downscaleImage(dataUrl: string, maxDim = 1024, quality = 0.85): Promise<string> {
@@ -111,37 +112,55 @@ export default function TrainingMode() {
 
 	const currentTarget = training.targets[training.round - 1];
 
+	async function postJson<T = any>(url: string, data: unknown, retries = 1): Promise<{ ok: boolean; json: any; status: number }> {
+		for (let attempt = 0; attempt <= retries; attempt++) {
+			try {
+				const res = await fetch(url, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(data),
+				});
+				const json = await res.json().catch(() => ({}));
+				if (res.ok && !json?.error) return { ok: true, json, status: res.status };
+				if (attempt < retries) {
+					await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+					continue;
+				}
+				return { ok: false, json, status: res.status };
+			} catch {
+				if (attempt < retries) {
+					await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+					continue;
+				}
+				return { ok: false, json: { error: 'Network error' }, status: 0 };
+			}
+		}
+		return { ok: false, json: { error: 'Unknown error' }, status: 0 };
+	}
+
 	const handleSubmit = async () => {
 		if (!currentTarget || !prompt || loading) return;
 		setLoading(true);
+		setErrorMsg('');
 		try {
 			// Generate user image from prompt
-			const genRes = await fetch('/api/generate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ prompt }),
-			});
-			const genJson = await genRes.json();
-			if (!genRes.ok || genJson?.error) {
-				throw new Error(genJson?.error || 'Failed to generate image');
-			}
+			const genResp = await postJson('/api/generate', { prompt }, 1);
+			if (!genResp.ok) throw new Error(genResp.json?.error || 'Failed to generate image');
+			const genJson = genResp.json;
 			const genImageRaw: string | null = genJson?.image ?? genJson?.imageDataUrl ?? null;
 			const genImage = genImageRaw ? await downscaleImage(genImageRaw, 1024, 0.85) : null;
 			setGeneratedImage(genImage ?? null);
 
 			// Score using both images and gold prompt
 			const targetDown = await downscaleImage(currentTarget.imageDataUrl, 1024, 0.85);
-			const scoreRes = await fetch('/api/score', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
+			const scoreResp = await postJson('/api/score', {
 					prompt,
 					targetDescription: currentTarget.prompt,
 					targetImage: targetDown,
 					generatedImage: genImage,
-				}),
-			});
-			const scoreJson = await scoreRes.json();
+				}, 1);
+			if (!scoreResp.ok) throw new Error(scoreResp.json?.error || 'Failed to score image');
+			const scoreJson = scoreResp.json;
 			const aiScore: number = scoreJson?.aiScore ?? 0;
 			const note: string = scoreJson?.feedback?.note ?? '';
 			const tip: string = scoreJson?.feedback?.tip ?? '';
@@ -159,6 +178,8 @@ export default function TrainingMode() {
 			setLastNote(note);
 			setLastTip(tip);
 			setPrompt('');
+		} catch (e: any) {
+			setErrorMsg(e?.message || 'Something went wrong. Please try again.');
 		} finally {
 			setLoading(false);
 		}
@@ -258,11 +279,12 @@ export default function TrainingMode() {
 							/>
 							<button
 								onClick={handleSubmit}
-								disabled={loading || !prompt}
+								disabled={loading || !prompt || !currentTarget}
 								className="btn mt-3 w-full"
 							>
 								{loading ? 'Scoring...' : 'Generate & Score'}
 							</button>
+							{errorMsg ? <p className="text-xs text-red-600 mt-2">{errorMsg}</p> : null}
 						</div>
 					) : (
 						<>
