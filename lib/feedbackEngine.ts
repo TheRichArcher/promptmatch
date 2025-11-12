@@ -3,34 +3,73 @@ export function generateFeedback(
 	prompt: string,
 	score: number,
 ): { note: string; tip: string } {
-	if (score > 90) {
+	// Congrats path stays the same
+	if (score >= 90) {
 		return { note: 'Mastered!', tip: 'Try Expert Mode' };
 	}
 
-	const missing: string[] = [];
 	const targetLower = String(target || '').toLowerCase();
 	const promptLower = String(prompt || '').toLowerCase();
 
-	// Key attributes checks (simple heuristics)
-	if (!promptLower.includes('large') && targetLower.includes('big')) {
-		missing.push('size');
-	}
-	if (!promptLower.includes('center') && !promptLower.includes('middle')) {
-		missing.push('placement');
-	}
-	if (!promptLower.includes('wood') && targetLower.includes('wood')) {
-		missing.push('material');
-	}
-	if (!promptLower.includes('sunlight') && !promptLower.includes('shadow')) {
-		missing.push('lighting');
+	// Lightweight keyword extraction focused on nouns/attributes.
+	const STOPWORDS = new Set([
+		'a','an','the','with','and','or','of','on','in','at','to','for','by','from','over','under','into','near','next','up','down','is','are','be',
+		'very','some','more','most','much','many','few','less','least','this','that','these','those','it','its','as','like','while','between','behind','front',
+	]);
+	const ATTR_HINTS = {
+		color: ['red','blue','green','yellow','orange','purple','pink','white','black','gray','brown','gold','silver'],
+		material: ['wood','metal','glass','plastic','stone','marble','fabric','ceramic'],
+		lighting: ['sunlight','shadow','shadows','soft light','hard light','studio','backlit','sunny','golden hour','overcast'],
+		placement: ['center','centred','centered','middle','left','right','close-up','closeup','wide','overhead','top-down','background','foreground'],
+		style: ['vintage','modern','minimal','realistic','photo','photograph','macro','film','bokeh','cinematic'],
+	};
+
+	function tokenize(text: string): string[] {
+		return text
+			.toLowerCase()
+			.replace(/[^a-z0-9\s-]/g, ' ')
+			.split(/\s+/)
+			.filter(Boolean);
 	}
 
+	function extractKeywords(text: string): string[] {
+		const tokens = tokenize(text);
+		return tokens.filter((t) => !STOPWORDS.has(t) && t.length > 2);
+	}
+
+	function extractSubject(text: string): string {
+		// Pick the first two non-stopword tokens as a cheap "subject" proxy.
+		const tokens = extractKeywords(text);
+		return tokens.slice(0, 2).join(' ') || 'target';
+	}
+
+	const targetKeywords = extractKeywords(targetLower);
+	const promptKeywords = extractKeywords(promptLower);
+
+	// What appears in the target description but not the user's prompt?
+	const missingKeywords = Array.from(new Set(targetKeywords.filter((w) => !promptKeywords.includes(w)))).slice(0, 8);
+
+	// Classify missing attributes for a clearer tip
+	const missingAttributes: string[] = [];
+	for (const [attr, words] of Object.entries(ATTR_HINTS)) {
+		if (words.some((w) => targetLower.includes(w)) && !words.some((w) => promptLower.includes(w))) {
+			missingAttributes.push(attr);
+		}
+	}
+
+	const subject = extractSubject(targetLower);
+	const attributesPart = missingKeywords.filter((w) => !subject.includes(w)).slice(0, 5).join(', ');
+
+	// Note is anchored to the TARGET, not the user's incorrect subject.
 	const note =
-		missing.length > 0
-			? `Try: "${prompt} with ${missing.join(' and ')}"`
-			: 'Almost perfect — add more detail like "shiny" or "reflection"';
+		missingKeywords.length > 0
+			? `Try: "${subject}${attributesPart ? ' with ' + attributesPart : ''}"`
+			: `Describe the ${subject} with specific color, lighting and placement.`;
 
-	const tip = `Focus on: ${missing.length ? missing.join(', ') : 'style, mood, angle'}`;
+	const tip =
+		missingAttributes.length > 0
+			? `Focus on: ${missingAttributes.join(', ')}`
+			: 'Focus on: color, placement, lighting';
 
 	return { note, tip };
 }
