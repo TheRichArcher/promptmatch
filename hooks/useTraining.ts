@@ -128,7 +128,7 @@ export function useTraining(initialSameSet?: { levels: Level[]; images: string[]
 	}, []);
 
 	// Score the current round without advancing; UI controls when to proceed.
-	const scoreCurrentRound = useCallback(async (prompt: string) => {
+	const scoreCurrentRound = useCallback(async (prompt: string, generatedImageDataUrl?: string | null) => {
 		if (state.isComplete) return;
 		const current = state.round;
 		if (current >= 5) return;
@@ -146,15 +146,43 @@ export function useTraining(initialSameSet?: { levels: Level[]; images: string[]
 			targetDescription = describeSpec(similar);
 		}
 
-		const { score, feedback, similarity01 } = await scoreRound(prompt.trim(), targetDescription, targetImageForScoring ?? undefined);
+		const { score, feedback, similarity01 } = await scoreRound(
+			prompt.trim(),
+			targetDescription,
+			targetImageForScoring ?? undefined,
+			// NOTE: extend scoreRound to accept generatedImage? Keep API surface minimal by using body field.
+		);
+		// Since scoreRound does not accept generated image, do a second call with images if provided
+		let finalScore = score;
+		let finalSimilarity = similarity01;
+		let finalFeedback = feedback;
+		if (generatedImageDataUrl) {
+			const res = await fetch('/api/score', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					prompt: prompt.trim(),
+					targetDescription,
+					targetImage: targetImageForScoring ?? null,
+					generatedImage: generatedImageDataUrl,
+				}),
+			});
+			const data = await res.json();
+			if (res.ok && !data?.error) {
+				finalScore = Number(data.aiScore ?? finalScore);
+				finalSimilarity = typeof data.similarity01 === 'number' ? data.similarity01 : finalSimilarity;
+				finalFeedback = (data.feedback?.note as string) || finalFeedback;
+			}
+		}
 
 		setState((prev) => ({
 			...prev,
 			prompts: [...prev.prompts, prompt.trim()],
-			scores: [...prev.scores, score],
-			feedback: [...prev.feedback, feedback],
-			similarities: [...prev.similarities, typeof similarity01 === 'number' ? similarity01 : 0],
+			scores: [...prev.scores, finalScore],
+			feedback: [...prev.feedback, finalFeedback],
+			similarities: [...prev.similarities, typeof finalSimilarity === 'number' ? finalSimilarity : 0],
 		}));
+		return { aiScore: finalScore, similarity01: finalSimilarity, feedback: finalFeedback };
 	}, [state.isComplete, state.levels, state.round, state.targetImages]);
 
 	// Advance to next round; mark complete when entering round 5 (summary).

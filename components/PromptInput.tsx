@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function PromptInput({
 	onSubmit,
@@ -10,6 +10,9 @@ export default function PromptInput({
 	defaultPrompt?: string;
 }) {
 	const [value, setValue] = useState<string>(defaultPrompt ?? '');
+	useEffect(() => {
+		setValue(defaultPrompt ?? '');
+	}, [defaultPrompt]);
 	return (
 		<form
 			className="space-y-3"

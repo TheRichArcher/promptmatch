@@ -5,10 +5,42 @@ import CanvasPreview from '@/components/CanvasPreview';
 import PromptInput from '@/components/PromptInput';
 import { useTraining } from '@/hooks/useTraining';
 import { trainingLevels } from '@/lib/levels';
+import ScoreCard from '@/components/ScoreCard';
+
+type ScoreResponse = {
+	aiScore: number;
+	similarity01: number | null;
+	feedback: string;
+};
+
+function downscaleImage(dataUrl: string, maxDim = 768): Promise<string> {
+	return new Promise((resolve) => {
+		const img = new Image();
+		img.onload = () => {
+			const canvas = document.createElement('canvas');
+			let { width, height } = img as HTMLImageElement & { width: number; height: number };
+			if (width > height && width > maxDim) {
+				height = (height * maxDim) / width;
+				width = maxDim;
+			} else if (height > maxDim) {
+				width = (width * maxDim) / height;
+				height = maxDim;
+			}
+			canvas.width = width;
+			canvas.height = height;
+			const ctx = canvas.getContext('2d')!;
+			ctx.drawImage(img, 0, 0, width, height);
+			resolve(canvas.toDataURL('image/jpeg', 0.8));
+		};
+		img.src = dataUrl;
+	});
+}
 
 export default function TrainingMode() {
 	const { state, internal, scoreCurrentRound, goNextRound, resetNewSet, retrySameSet } = useTraining(null);
 	const [isScoring, setIsScoring] = useState(false);
+	const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+	const [score, setScore] = useState<ScoreResponse | null>(null);
 	const [lastSubmittedRound, setLastSubmittedRound] = useState<number | null>(null);
 
 	const { headerTitle, headerSub } = useMemo(() => {
@@ -76,7 +108,29 @@ export default function TrainingMode() {
 	const handleSubmit = async (prompt: string) => {
 		setIsScoring(true);
 		try {
-			await scoreCurrentRound(prompt);
+			// 1) Generate image
+			const genResp = await fetch('/api/generate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ prompt }),
+			});
+			const genRes = await genResp.json();
+			if (!genResp.ok || genRes?.error) {
+				throw new Error(genRes?.error || 'Failed to generate image');
+			}
+			const generatedDataUrl: string | null = genRes?.image || genRes?.imageUrl || genRes?.imageDataUrl || null;
+			const generatedDown = generatedDataUrl ? await downscaleImage(generatedDataUrl, 768) : null;
+			setGeneratedImage(generatedDown);
+
+			// 2) Score round using both target and generated images (hook will also store in training state)
+			const result = await scoreCurrentRound(prompt, generatedDown);
+			if (result) {
+				setScore({
+					aiScore: result.aiScore,
+					similarity01: result.similarity01,
+					feedback: result.feedback,
+				});
+			}
 			setLastSubmittedRound(state.round);
 		} finally {
 			setIsScoring(false);
@@ -131,18 +185,25 @@ export default function TrainingMode() {
 							<span className="font-semibold">💡 Tip from last round:</span> “{lastFeedback || 'Add details about background or lighting.'}”
 						</div>
 					) : null}
-					<PromptInput onSubmit={handleSubmit} isGenerating={isScoring} defaultPrompt={defaultPrompt} />
+					<CanvasPreview imageDataUrl={generatedImage} label={generatedImage ? 'Your Image' : undefined} />
+					<div className="mt-3">
+						<PromptInput onSubmit={handleSubmit} isGenerating={isScoring} defaultPrompt={defaultPrompt} />
+					</div>
 				</div>
 			</div>
 
 			{/* Feedback + Next Round CTA after scoring */}
 			{lastSubmittedRound === state.round ? (
 				<div className="grid gap-6 md:grid-cols-2">
-					<div className="card p-4">
-						<div className="text-lg">✨ Feedback</div>
-						<div className="mt-2 text-sm text-gray-800">“{lastFeedback || 'You’ve got the idea — specify placement and size.'}”</div>
-						<div className="mt-2 text-sm text-gray-600">Next up: Try refining your description to improve your score.</div>
-					</div>
+					{score ? (
+						<ScoreCard aiScore={score.aiScore} feedback={{ tips: [], note: score.feedback }} />
+					) : (
+						<div className="card p-4">
+							<div className="text-lg">✨ Feedback</div>
+							<div className="mt-2 text-sm text-gray-800">“{lastFeedback || 'You’ve got the idea — specify placement and size.'}”</div>
+							<div className="mt-2 text-sm text-gray-600">Next up: Try refining your description to improve your score.</div>
+						</div>
+					)}
 					<div className="card flex items-center justify-between gap-4 p-4">
 						<div className="text-sm text-gray-600">Ready for the next round?</div>
 						<button
@@ -150,6 +211,8 @@ export default function TrainingMode() {
 							onClick={() => {
 								goNextRound();
 								setLastSubmittedRound(null);
+								setScore(null);
+								setGeneratedImage(null);
 							}}
 						>
 							Next Round ➜
