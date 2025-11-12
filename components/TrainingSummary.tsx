@@ -110,7 +110,7 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 								)}
 							</div>
 							<p className="text-xs font-bold mt-1">{scores[i] ?? '-'}</p>
-							<p className="text-xs text-gray-600">{feedback[i] ? `${feedback[i].slice(0, 20)}...` : ''}</p>
+							<p className="text-xs text-gray-600">{feedback[i] ?? ''}</p>
 						</div>
 					))}
 				</div>
