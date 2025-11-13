@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import TrainingSummary from '@/components/TrainingSummary';
 import { getNextTier, getTierFromScore, type Tier } from '@/lib/tiers';
-import { saveRoundState } from '@/lib/trainingUtils';
+import { saveRoundState, loadLevelState, saveLevelState, incrementLevel, type LevelState } from '@/lib/trainingUtils';
 
 type Target = { goldToken: string; imageDataUrl: string };
 type TrainingState = {
@@ -30,6 +30,7 @@ export default function TrainingMode() {
 	});
 	// Gold prompts are sealed; do not reveal during rounds
 	const [initializing, setInitializing] = useState(true);
+	const [levelState, setLevelState] = useState<LevelState>(() => loadLevelState(5));
 	const [prompt, setPrompt] = useState('');
 	const [loading, setLoading] = useState(true);
 	const [lastSubmittedRound, setLastSubmittedRound] = useState<number | null>(null);
@@ -42,6 +43,7 @@ export default function TrainingMode() {
 	const [tierNotice, setTierNotice] = useState<string>('');
 	const [isLevelLoading, setIsLevelLoading] = useState<boolean>(false);
 	const [isAdvancingRound, setIsAdvancingRound] = useState<boolean>(false);
+	const [showLevelToast, setShowLevelToast] = useState<boolean>(false);
 	const initializingRef = useRef(initializing);
 	useEffect(() => {
 		initializingRef.current = initializing;
@@ -135,6 +137,11 @@ export default function TrainingMode() {
 	useEffect(() => {
 		saveRoundState({ round: training.round, roundsTotal: training.roundsTotal });
 	}, [training.round, training.roundsTotal]);
+
+	// Persist level state when it changes
+	useEffect(() => {
+		saveLevelState(levelState);
+	}, [levelState]);
 
 	const currentTarget = training.targets[training.round - 1];
 
@@ -283,6 +290,11 @@ export default function TrainingMode() {
 								const next = getNextTier(currentTier);
 								setTier(next);
 								await waitForInitialization();
+								// Advance level progression and show toast
+								const nextLevel = incrementLevel();
+								setLevelState((prev) => ({ ...prev, current: nextLevel }));
+								setShowLevelToast(true);
+								setTimeout(() => setShowLevelToast(false), 2000);
 							} finally {
 								setIsLevelLoading(false);
 							}
@@ -295,6 +307,11 @@ export default function TrainingMode() {
 
 	return (
 		<div className="max-w-5xl mx-auto relative">
+			{showLevelToast ? (
+				<div className="fixed top-4 left-1/2 -translate-x-1/2 z-30 bg-green-600 text-white px-4 py-2 rounded-lg shadow animate-fadeIn">
+					Level {levelState.current} Unlocked!
+				</div>
+			) : null}
 			{isAdvancingRound ? (
 				<div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 backdrop-blur-sm animate-fadeIn">
 					<div className="flex flex-col items-center">
@@ -319,15 +336,20 @@ export default function TrainingMode() {
 					<div className="mb-6 animate-fadeIn">
 						<div className="flex items-center justify-between gap-3">
 							<span className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium bg-gray-50 text-gray-700">
-								Level: {tierLabel}
+								Level {levelState.current}
 							</span>
-							<h2 className="text-2xl font-bold text-center flex-1">
-								{isFinalRound ? 'Final Round!' : (
-									<>
-										Round {training.round} of {training.roundsTotal}
-									</>
-								)}
-							</h2>
+							<div className="flex-1 text-center">
+								<h2 className="text-2xl font-bold">
+									{isFinalRound ? 'Final Round!' : (
+										<>
+											Round {training.round} of {training.roundsTotal}
+										</>
+									)}
+								</h2>
+								<p className="text-xs text-gray-600 mt-1">
+									Level {levelState.current} of {levelState.total} – {tierLabel} Tier
+								</p>
+							</div>
 							<span className="hidden sm:inline text-sm text-gray-500">{progressPercent}%</span>
 						</div>
 						<div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">

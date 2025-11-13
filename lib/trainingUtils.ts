@@ -11,6 +11,53 @@ export function pickNextLevel(score: number): string {
 	return 'Advanced Challenge';
 }
 
+// Level progression (persists across sessions)
+export type LevelState = {
+	current: number;
+	total: number;
+};
+
+const LEVEL_STATE_KEY = 'pm-level-state';
+
+export function loadLevelState(defaultTotal: number = 5): LevelState {
+	if (typeof window === 'undefined') return { current: 1, total: defaultTotal };
+	try {
+		const raw = window.localStorage.getItem(LEVEL_STATE_KEY);
+		if (raw) {
+			const parsed = JSON.parse(raw) as LevelState;
+			const total = typeof parsed.total === 'number' && parsed.total > 0 ? parsed.total : defaultTotal;
+			const current = Math.min(Math.max(1, Number(parsed.current) || 1), total);
+			return { current, total };
+		}
+	} catch {
+		// ignore storage errors and fall through to default
+	}
+	return { current: 1, total: defaultTotal };
+}
+
+export function saveLevelState(state: LevelState) {
+	if (typeof window === 'undefined') return;
+	try {
+		const total = Math.max(1, Number(state.total) || 1);
+		const current = Math.min(Math.max(1, Number(state.current) || 1), total);
+		window.localStorage.setItem(LEVEL_STATE_KEY, JSON.stringify({ current, total }));
+	} catch {
+		// ignore storage errors
+	}
+}
+
+export function incrementLevel() {
+	const { current, total } = loadLevelState();
+	const next = Math.min(current + 1, total);
+	saveLevelState({ current: next, total });
+	return next;
+}
+
+export function resetLevel(total: number = 5) {
+	saveLevelState({ current: 1, total });
+	return 1;
+}
+
 export type RoundState = {
 	round: number;
 	roundsTotal: number;

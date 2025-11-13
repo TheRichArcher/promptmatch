@@ -99,7 +99,7 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 
 			<div className="relative z-10 text-center space-y-6">
 				<h2 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-					Training Complete!
+					Level Complete!
 				</h2>
 
 				<div className="flex justify-center items-center gap-8 text-2xl font-semibold">
@@ -193,13 +193,13 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 						{loadingTier ? (
 							<>
 								<span className="inline-block animate-spin mr-2">⏳</span>
-								{nextTier === 'expert' ? 'Preparing Expert Challenge…' : 'Preparing your next tier...'}
-								<span className="block text-xs opacity-0 select-none">Unlock {nextTier} →</span>
+								{nextTier === 'expert' ? 'Preparing Expert Level…' : 'Preparing next level...'}
+								<span className="block text-xs opacity-0 select-none">Next Level: {nextTier} →</span>
 							</>
 						) : (
 							<>
-								Next Challenge Tier
-								<span className="block text-xs opacity-80">Unlock {nextTier} →</span>
+								Next Level
+								<span className="block text-xs opacity-80">Next Level: {nextTier} →</span>
 							</>
 						)}
 					</button>
