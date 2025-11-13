@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import TrainingSummary from '@/components/TrainingSummary';
+import ProgressHeader from '@/components/ProgressHeader';
 import { getNextTier, getTierFromScore, type Tier } from '@/lib/tiers';
 import { saveRoundState, loadLevelState, saveLevelState, incrementLevel, type LevelState } from '@/lib/trainingUtils';
 
@@ -44,6 +45,7 @@ export default function TrainingMode() {
 	const [isLevelLoading, setIsLevelLoading] = useState<boolean>(false);
 	const [isAdvancingRound, setIsAdvancingRound] = useState<boolean>(false);
 	const [showLevelToast, setShowLevelToast] = useState<boolean>(false);
+	const [isFreePlay, setIsFreePlay] = useState<boolean>(false);
 	const initializingRef = useRef(initializing);
 	useEffect(() => {
 		initializingRef.current = initializing;
@@ -284,6 +286,13 @@ export default function TrainingMode() {
 							const avg = training.scores.length ? training.scores.reduce((a, b) => a + b, 0) / training.scores.length : 0;
 							const currentTier = getTierFromScore(avg);
 							const next = getNextTier(currentTier);
+							// Free Play Mode after Expert
+							if (currentTier === 'expert') {
+								console.info('🎮 Switching to Free Play Mode');
+								setIsFreePlay(true);
+							} else {
+								setIsFreePlay(false);
+							}
 							setTier(next);
 							await waitForInitialization();
 							// Advance level progression and show toast
@@ -320,43 +329,17 @@ export default function TrainingMode() {
 					{tierNotice} Using a lower-tier pool for now.
 				</div>
 			) : null}
-			{(() => {
-				const progressPercent = Math.min(
-					100,
-					Math.max(0, Math.round(((training.round - 1) / Math.max(1, training.roundsTotal)) * 100)),
-				);
-				const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
-				const isFinalRound = training.round === training.roundsTotal;
-				return (
-					<div className="mb-6 animate-fadeIn">
-						<div className="flex items-center justify-between gap-3">
-							<span className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium bg-gray-50 text-gray-700">
-								Level {levelState.current}
-							</span>
-							<div className="flex-1 text-center">
-								<h2 className="text-2xl font-bold">
-									{isFinalRound ? 'Final Round!' : (
-										<>
-											Round {training.round} of {training.roundsTotal}
-										</>
-									)}
-								</h2>
-								<p className="text-xs text-gray-600 mt-1">
-									{/* Compact persistent status line */}
-									Level: {tierLabel} • Round {training.round} of {training.roundsTotal}
-								</p>
-							</div>
-							<span className="hidden sm:inline text-sm text-gray-500">{progressPercent}%</span>
-						</div>
-						<div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
-							<div
-								className="h-2 bg-primary-600 transition-all duration-700 ease-out"
-								style={{ width: `${progressPercent}%` }}
-							/>
+			<div className="mb-6 animate-fadeIn">
+				<ProgressHeader tier={tier} round={training.round} roundsTotal={training.roundsTotal} isFreePlay={isFreePlay} />
+				{isFreePlay ? (
+					<div className="mt-2">
+						<div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
+							<span className="w-2 h-2 bg-green-600 rounded-full animate-pulse" />
+							Free Play Mode
 						</div>
 					</div>
-				);
-			})()}
+				) : null}
+			</div>
 
 			{/* Images Row with Prompt/Result on the right */}
 			<div className="grid md:grid-cols-2 gap-8">

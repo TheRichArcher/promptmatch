@@ -6,6 +6,7 @@ import { mostFrequent } from '@/lib/trainingUtils';
 import { saveProgress } from '@/lib/progress';
 import { useRouter } from 'next/navigation';
 import { getNextTier, getTierFromScore } from '@/lib/tiers';
+import LoadingOverlay from './LoadingOverlay';
 
 type Props = {
 	scores: number[];
@@ -22,6 +23,8 @@ type Props = {
 export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier, userPrompts, targets, generatedImages, lastSuggestion, lastTip }: Props) {
 	const [showConfetti, setShowConfetti] = useState(true);
 	const [isAdvancing, setIsAdvancing] = useState(false);
+	const [isLoadingNext, setIsLoadingNext] = useState(false);
+	const [loadingMessage, setLoadingMessage] = useState<string>('Loading next level…');
 	const [showToast, setShowToast] = useState(false);
 	const [goldPrompts, setGoldPrompts] = useState<(string | null)[]>([]);
 	const [goldAllowed, setGoldAllowed] = useState(false);
@@ -87,14 +90,38 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 		})();
 	}, [targets]);
 
+	async function handleNextTier() {
+		if (isAdvancing || isLoadingNext) return;
+		setIsAdvancing(true);
+		setIsLoadingNext(true);
+		setLoadingMessage('Loading next level…');
+		// Fallback nudger after 60s if still loading
+		const fallbackTimer = setTimeout(() => {
+			if (isLoadingNext) {
+				setLoadingMessage('Still working… hang tight!');
+			}
+		}, 60000);
+		try {
+			await onNextTier();
+			setShowToast(true);
+			setTimeout(() => setShowToast(false), 2000);
+		} finally {
+			clearTimeout(fallbackTimer);
+			setIsAdvancing(false);
+			setIsLoadingNext(false);
+		}
+	}
+
 	return (
 		<div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-2xl animate-fadeIn">
+			<LoadingOverlay isLoading={isLoadingNext} message={loadingMessage} className="animate-fadeIn" />
+			{isLoadingNext ? <Confetti recycle={false} /> : null}
 			{showToast ? (
 				<div className="fixed bottom-4 right-4 bg-green-600 text-white p-3 rounded-lg shadow-lg animate-fadeIn">
 					{nextTier} unlocked!
 				</div>
 			) : null}
-			{showConfetti ? (
+			{showConfetti && !isLoadingNext ? (
 				<Confetti width={window.innerWidth} height={window.innerHeight} recycle={false} numberOfPieces={200} />
 			) : null}
 
@@ -177,17 +204,7 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 						<span className="block text-xs opacity-90">Practice {currentTier} again</span>
 					</button>
 					<button
-						onClick={async () => {
-							if (isAdvancing) return;
-							setIsAdvancing(true);
-							try {
-								await onNextTier();
-								setShowToast(true);
-								setTimeout(() => setShowToast(false), 2000);
-							} finally {
-								setIsAdvancing(false);
-							}
-						}}
+						onClick={handleNextTier}
 						disabled={isAdvancing}
 						aria-disabled={isAdvancing}
 						aria-busy={isAdvancing}
