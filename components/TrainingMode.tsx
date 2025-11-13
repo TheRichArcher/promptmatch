@@ -39,6 +39,7 @@ export default function TrainingMode() {
 	const [tier, setTier] = useState<Tier>('medium');
 	const [errorMsg, setErrorMsg] = useState<string>('');
 	const [tierNotice, setTierNotice] = useState<string>('');
+	const [isLevelLoading, setIsLevelLoading] = useState<boolean>(false);
 	const initializingRef = useRef(initializing);
 	useEffect(() => {
 		initializingRef.current = initializing;
@@ -242,25 +243,45 @@ export default function TrainingMode() {
 
 	if (training.isComplete) {
 		return (
-			<TrainingSummary
-				scores={training.scores}
-				feedback={training.feedback}
-				userPrompts={training.prompts}
-				targets={training.targets}
-				generatedImages={training.generatedImages}
-				lastSuggestion={lastNote}
-				lastTip={lastTip}
-				onNewSet={() => {
-					void loadSet({ resetUsed: false, tier });
-				}}
-				onNextTier={async () => {
-					const avg = training.scores.length ? training.scores.reduce((a, b) => a + b, 0) / training.scores.length : 0;
-					const currentTier = getTierFromScore(avg);
-					const next = getNextTier(currentTier);
-					setTier(next);
-					await waitForInitialization();
-				}}
-			/>
+			<>
+				{isLevelLoading ? (
+					<div className="flex flex-col items-center justify-center py-24 animate-fadeIn">
+						<div className="h-10 w-10 rounded-full border-2 border-primary-600 border-t-transparent animate-spin mb-3" />
+						<p className="text-sm text-gray-600">Loading next level...</p>
+					</div>
+				) : (
+					<TrainingSummary
+						scores={training.scores}
+						feedback={training.feedback}
+						userPrompts={training.prompts}
+						targets={training.targets}
+						generatedImages={training.generatedImages}
+						lastSuggestion={lastNote}
+						lastTip={lastTip}
+						onNewSet={async () => {
+							setIsLevelLoading(true);
+							try {
+								await loadSet({ resetUsed: false, tier });
+								await waitForInitialization();
+							} finally {
+								setIsLevelLoading(false);
+							}
+						}}
+						onNextTier={async () => {
+							setIsLevelLoading(true);
+							try {
+								const avg = training.scores.length ? training.scores.reduce((a, b) => a + b, 0) / training.scores.length : 0;
+								const currentTier = getTierFromScore(avg);
+								const next = getNextTier(currentTier);
+								setTier(next);
+								await waitForInitialization();
+							} finally {
+								setIsLevelLoading(false);
+							}
+						}}
+					/>
+				)}
+			</>
 		);
 	}
 
