@@ -187,4 +187,31 @@ export function fileToDataUrl(absPath: string): string {
 	return `data:image/png;base64,${b64}`;
 }
 
+// Attempt to pick images for a tier, but if the pool is empty, fall back to lower tiers (hard → medium)
+export async function pickUniqueImagesWithFallback(
+	projectRoot: string,
+	requestedTier: Tier,
+	count: number,
+): Promise<{ picks: { abs: string; url: string; label: string }[]; usedTier: Tier }> {
+	// First try the requested tier (including autogen)
+	let picks = await pickUniqueImages(projectRoot, requestedTier, count);
+	if (picks.length > 0) {
+		return { picks, usedTier: requestedTier };
+	}
+	// Only fall back for challenge tiers
+	const fallbackOrder: Tier[] =
+		requestedTier === 'expert' || requestedTier === 'advanced' ? ['hard', 'medium'] : [];
+	for (const tier of fallbackOrder) {
+		// Only use tiers that actually have a pool
+		const { absPaths } = getPoolForTier(projectRoot, tier);
+		if (absPaths.length === 0) continue;
+		picks = await pickUniqueImages(projectRoot, tier, count);
+		if (picks.length > 0) {
+			return { picks, usedTier: tier };
+		}
+	}
+	// Nothing available anywhere
+	return { picks: [], usedTier: requestedTier };
+}
+
 

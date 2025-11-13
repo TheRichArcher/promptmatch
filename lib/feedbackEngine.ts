@@ -3,6 +3,29 @@ export function generateFeedback(
 	prompt: string,
 	score: number,
 ): { note: string; tip: string } {
+	// Small pool of generic but varied prompting tips for when no specific attributes are detected
+	const GENERIC_TIPS = [
+		'Add a camera angle (macro, wide, overhead)',
+		'Specify time of day and lighting (golden hour, overcast)',
+		'Mention material and texture (wood, metal, glossy, matte)',
+		'Add style cues (cinematic, vintage, studio photo)',
+		'Control depth of field (shallow focus, bokeh)',
+		'Refine background/foreground separation',
+		'Boost contrast and shadows for clarity',
+		'State color palette explicitly',
+		'Describe placement and distance (centered, close‑up)',
+		'Use environment context (on a table, on the beach)',
+	];
+
+	function pickDeterministic<T>(arr: T[], seedStr: string): T {
+		let h = 0;
+		for (let i = 0; i < seedStr.length; i++) {
+			h = (h * 31 + seedStr.charCodeAt(i)) >>> 0;
+		}
+		const idx = h % arr.length;
+		return arr[idx];
+	}
+
 	// High score: give specific finishing touches instead of generic praise
 	if (score > 90) {
 		const t = String(target || '').toLowerCase();
@@ -77,7 +100,18 @@ export function generateFeedback(
 	const tip =
 		missingAttributes.length > 0
 			? `Focus on: ${missingAttributes.join(', ')}`
-			: 'Focus on: color, placement, lighting';
+			: (() => {
+					// If we have concrete missing keywords, surface a couple of them; otherwise pick a varied generic coaching tip
+					const concrete = attributesPart
+						.split(',')
+						.map((s) => s.trim())
+						.filter(Boolean);
+					if (concrete.length > 0) {
+						const few = concrete.slice(0, 2).join(', ');
+						return `Add specifics: ${few}`;
+					}
+					return pickDeterministic(GENERIC_TIPS, targetLower + '|' + promptLower);
+			  })();
 
 	return { note, tip };
 }

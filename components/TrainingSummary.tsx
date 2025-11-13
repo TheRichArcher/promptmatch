@@ -11,7 +11,7 @@ type Props = {
 	scores: number[];
 	feedback: string[];
 	onNewSet: () => void;
-	onNextTier: () => void;
+	onNextTier: () => Promise<void>;
 	userPrompts: string[];
 	targets: { imageDataUrl: string; goldToken: string }[];
 	generatedImages: (string | null)[];
@@ -179,19 +179,22 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 						onClick={async () => {
 							if (loadingTier) return;
 							setLoadingTier(true);
-							await new Promise((r) => setTimeout(r, 800));
-							onNextTier();
-							setLoadingTier(false);
-							setShowToast(true);
-							setTimeout(() => setShowToast(false), 2000);
+							try {
+								await onNextTier();
+								setShowToast(true);
+								setTimeout(() => setShowToast(false), 2000);
+							} finally {
+								setLoadingTier(false);
+							}
 						}}
 						disabled={loadingTier}
-						className="bg-white text-gray-800 px-8 py-3 rounded-xl font-semibold border border-gray-300 hover:bg-gray-50 transition shadow relative disabled:opacity-75"
+						className="bg-white text-gray-800 px-8 py-3 rounded-xl font-semibold border border-gray-300 hover:bg-gray-50 transition shadow relative disabled:opacity-75 w-56"
 					>
 						{loadingTier ? (
 							<>
 								<span className="inline-block animate-spin mr-2">⏳</span>
-								Loading {nextTier}...
+								{nextTier === 'expert' ? 'Preparing Expert Challenge…' : 'Preparing your next tier...'}
+								<span className="block text-xs opacity-0 select-none">Unlock {nextTier} →</span>
 							</>
 						) : (
 							<>
