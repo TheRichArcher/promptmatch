@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import TrainingSummary from '@/components/TrainingSummary';
 import { getNextTier, getTierFromScore, type Tier } from '@/lib/tiers';
 
@@ -38,6 +38,11 @@ export default function TrainingMode() {
 	const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 	const [tier, setTier] = useState<Tier>('medium');
 	const [errorMsg, setErrorMsg] = useState<string>('');
+	const [tierNotice, setTierNotice] = useState<string>('');
+	const initializingRef = useRef(initializing);
+	useEffect(() => {
+		initializingRef.current = initializing;
+	}, [initializing]);
 
 	// Downscale utility to keep images < ~1.5MB for scoring API
 	function downscaleImage(dataUrl: string, maxDim = 1024, quality = 0.85): Promise<string> {
@@ -80,7 +85,7 @@ export default function TrainingMode() {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ tier, resetUsed }),
 			});
-			const { targets } = await res.json();
+			const { targets, notice } = await res.json();
 			setTraining((prev) => ({
 				...prev,
 				round: 1,
@@ -92,6 +97,7 @@ export default function TrainingMode() {
 				isComplete: false,
 				roundsTotal: Math.max(1, Array.isArray(targets) ? targets.length : 5),
 			}));
+			setTierNotice(typeof notice === 'string' ? notice : '');
 			setLastSubmittedRound(null);
 			setLastScore(null);
 			setLastNote('');
@@ -101,6 +107,19 @@ export default function TrainingMode() {
 			setLoading(false);
 			setInitializing(false);
 		}
+	}
+
+	function waitForInitialization(): Promise<void> {
+		return new Promise((resolve) => {
+			const check = () => {
+				if (!initializingRef.current) {
+					resolve();
+				} else {
+					setTimeout(check, 100);
+				}
+			};
+			check();
+		});
 	}
 
 	// Prefill prompt on Round 2
@@ -234,11 +253,12 @@ export default function TrainingMode() {
 				onNewSet={() => {
 					void loadSet({ resetUsed: false, tier });
 				}}
-				onNextTier={() => {
+				onNextTier={async () => {
 					const avg = training.scores.length ? training.scores.reduce((a, b) => a + b, 0) / training.scores.length : 0;
 					const currentTier = getTierFromScore(avg);
 					const next = getNextTier(currentTier);
 					setTier(next);
+					await waitForInitialization();
 				}}
 			/>
 		);
@@ -246,9 +266,37 @@ export default function TrainingMode() {
 
 	return (
 		<div className="max-w-5xl mx-auto">
-			<div className="text-center mb-6">
-				<h2 className="text-2xl font-bold">Round {training.round} of {training.roundsTotal}</h2>
-			</div>
+			{tierNotice ? (
+				<div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 p-3 text-sm">
+					{tierNotice} Using a lower-tier pool for now.
+				</div>
+			) : null}
+			{(() => {
+				const progressPercent = Math.min(
+					100,
+					Math.max(0, Math.round(((training.round - 1) / Math.max(1, training.roundsTotal)) * 100)),
+				);
+				const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
+				return (
+					<div className="mb-6 animate-fadeIn">
+						<div className="flex items-center justify-between gap-3">
+							<span className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium bg-gray-50 text-gray-700">
+								Level: {tierLabel}
+							</span>
+							<h2 className="text-2xl font-bold text-center flex-1">
+								Round {training.round} of {training.roundsTotal}
+							</h2>
+							<span className="hidden sm:inline text-sm text-gray-500">{progressPercent}%</span>
+						</div>
+						<div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+							<div
+								className="h-2 bg-primary-600 transition-all"
+								style={{ width: `${progressPercent}%` }}
+							/>
+						</div>
+					</div>
+				);
+			})()}
 
 			{/* Images Row with Prompt/Result on the right */}
 			<div className="grid md:grid-cols-2 gap-8">
