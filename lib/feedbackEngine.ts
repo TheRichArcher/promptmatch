@@ -26,6 +26,23 @@ export function generateFeedback(
 		return arr[idx];
 	}
 
+	function sanitizePhrase(text: string): string {
+		let t = String(text || '').trim();
+		// Collapse duplicate prepositions (basic)
+		t = t.replace(/\b(with|of|in|on|at|to)\s+\1\b/gi, '$1');
+		// Strip "with" if followed by determiner+noun phrase
+		t = t.replace(/\bwith\s+(a|an|the)\s+/gi, '$1 ');
+		// Remove stray "with" if it appears before adjectives
+		t = t.replace(/\bwith\s+/gi, '');
+		// Lowercase leading article
+		t = t.replace(/^(A|An|The)\b/, (m) => m.toLowerCase());
+		// Remove trailing punctuation
+		t = t.replace(/[.,;:!?]+$/g, '');
+		// Collapse extra whitespace
+		t = t.replace(/\s{2,}/g, ' ').trim();
+		return t;
+	}
+
 	// High score: give specific finishing touches instead of generic praise
 	if (score > 90) {
 		const t = String(target || '').toLowerCase();
@@ -34,7 +51,7 @@ export function generateFeedback(
 		if (t.includes('rain') || t.includes('wet')) missing.push('weather');
 		if (t.includes('reflection') || t.includes('glass')) missing.push('reflections');
 		return {
-			note: missing.length ? `Try adding: ${missing.join(', ')} for 95+` : 'Perfect! Ready for Expert Mode',
+			note: missing.length ? `Try adding: ${missing.join(', ')} for 95+` : 'Perfect! You’ve unlocked Expert Mode.',
 			tip: 'Focus on: atmosphere, weather, reflections',
 		};
 	}
@@ -92,10 +109,18 @@ export function generateFeedback(
 	const attributesPart = missingKeywords.filter((w) => !subject.includes(w)).slice(0, 5).join(', ');
 
 	// Note is anchored to the TARGET, not the user's incorrect subject.
-	const note =
-		missingKeywords.length > 0
-			? `Try: "${subject}${attributesPart ? ' with ' + attributesPart : ''}"`
-			: `Describe the ${subject} with specific color, lighting and placement.`;
+	let note: string;
+	if (missingKeywords.length > 0) {
+		const attributesNounPhrase = attributesPart
+			.split(',')
+			.map((s) => s.trim())
+			.filter(Boolean)
+			.join(' ');
+		const rawPhrase = `${attributesNounPhrase} ${subject}`.trim();
+		note = `Try: "${sanitizePhrase(rawPhrase)}"`;
+	} else {
+		note = `Describe the ${subject} with specific color, lighting and placement.`;
+	}
 
 	const tip =
 		missingAttributes.length > 0

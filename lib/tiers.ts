@@ -14,6 +14,21 @@ export function getNextTier(current: Tier): Tier {
 	return order[Math.min(idx + 1, order.length - 1)];
 }
 
+export function getTierLabel(tier: Tier): string {
+	switch (tier) {
+		case 'easy':
+			return 'Easy';
+		case 'medium':
+			return 'Medium';
+		case 'hard':
+			return 'Hard';
+		case 'advanced':
+			return 'Advanced';
+		case 'expert':
+			return 'Expert';
+	}
+}
+
 export function tierToPath(tier: Tier): { group: 'training' | 'challenge'; leaf: string } {
 	switch (tier) {
 		case 'easy':

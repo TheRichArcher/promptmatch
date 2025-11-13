@@ -259,48 +259,43 @@ export default function TrainingMode() {
 	if (training.isComplete) {
 		return (
 			<>
-				{isLevelLoading ? (
-					<div className="flex flex-col items-center justify-center py-24 animate-fadeIn">
-						<div className="h-10 w-10 rounded-full border-2 border-primary-600 border-t-transparent animate-spin mb-3" />
-						<p className="text-sm text-gray-600">Loading next level...</p>
-					</div>
-				) : (
-					<TrainingSummary
-						scores={training.scores}
-						feedback={training.feedback}
-						userPrompts={training.prompts}
-						targets={training.targets}
-						generatedImages={training.generatedImages}
-						lastSuggestion={lastNote}
-						lastTip={lastTip}
-						onNewSet={async () => {
-							setIsLevelLoading(true);
-							try {
-								await loadSet({ resetUsed: false, tier });
-								await waitForInitialization();
-							} finally {
-								setIsLevelLoading(false);
-							}
-						}}
-						onNextTier={async () => {
-							setIsLevelLoading(true);
-							try {
-								const avg = training.scores.length ? training.scores.reduce((a, b) => a + b, 0) / training.scores.length : 0;
-								const currentTier = getTierFromScore(avg);
-								const next = getNextTier(currentTier);
-								setTier(next);
-								await waitForInitialization();
-								// Advance level progression and show toast
-								const nextLevel = incrementLevel();
-								setLevelState((prev) => ({ ...prev, current: nextLevel }));
-								setShowLevelToast(true);
-								setTimeout(() => setShowLevelToast(false), 2000);
-							} finally {
-								setIsLevelLoading(false);
-							}
-						}}
-					/>
-				)}
+				<TrainingSummary
+					scores={training.scores}
+					feedback={training.feedback}
+					userPrompts={training.prompts}
+					targets={training.targets}
+					generatedImages={training.generatedImages}
+					lastSuggestion={lastNote}
+					lastTip={lastTip}
+					onNewSet={async () => {
+						if (isLevelLoading) return;
+						setIsLevelLoading(true);
+						try {
+							await loadSet({ resetUsed: false, tier });
+							await waitForInitialization();
+						} finally {
+							setIsLevelLoading(false);
+						}
+					}}
+					onNextTier={async () => {
+						if (isLevelLoading) return;
+						setIsLevelLoading(true);
+						try {
+							const avg = training.scores.length ? training.scores.reduce((a, b) => a + b, 0) / training.scores.length : 0;
+							const currentTier = getTierFromScore(avg);
+							const next = getNextTier(currentTier);
+							setTier(next);
+							await waitForInitialization();
+							// Advance level progression and show toast
+							const nextLevel = incrementLevel();
+							setLevelState((prev) => ({ ...prev, current: nextLevel }));
+							setShowLevelToast(true);
+							setTimeout(() => setShowLevelToast(false), 2000);
+						} finally {
+							setIsLevelLoading(false);
+						}
+					}}
+				/>
 			</>
 		);
 	}
@@ -347,7 +342,8 @@ export default function TrainingMode() {
 									)}
 								</h2>
 								<p className="text-xs text-gray-600 mt-1">
-									Level {levelState.current} of {levelState.total} – {tierLabel} Tier
+									{/* Compact persistent status line */}
+									Level: {tierLabel} • Round {training.round} of {training.roundsTotal}
 								</p>
 							</div>
 							<span className="hidden sm:inline text-sm text-gray-500">{progressPercent}%</span>

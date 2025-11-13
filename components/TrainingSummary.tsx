@@ -21,7 +21,7 @@ type Props = {
 
 export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier, userPrompts, targets, generatedImages, lastSuggestion, lastTip }: Props) {
 	const [showConfetti, setShowConfetti] = useState(true);
-	const [loadingTier, setLoadingTier] = useState(false);
+	const [isAdvancing, setIsAdvancing] = useState(false);
 	const [showToast, setShowToast] = useState(false);
 	const [goldPrompts, setGoldPrompts] = useState<(string | null)[]>([]);
 	const [goldAllowed, setGoldAllowed] = useState(false);
@@ -48,6 +48,7 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 
 	const currentTier = getTierFromScore(averageScore);
 	const nextTier = getNextTier(currentTier);
+	const tierLabel = currentTier.charAt(0).toUpperCase() + currentTier.slice(1);
 
 	useEffect(() => {
 		const timer = setTimeout(() => setShowConfetti(false), 5000);
@@ -99,7 +100,7 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 
 			<div className="relative z-10 text-center space-y-6">
 				<h2 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-					Level Complete!
+					Level Complete! – {tierLabel}
 				</h2>
 
 				<div className="flex justify-center items-center gap-8 text-2xl font-semibold">
@@ -177,29 +178,29 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 					</button>
 					<button
 						onClick={async () => {
-							if (loadingTier) return;
-							setLoadingTier(true);
+							if (isAdvancing) return;
+							setIsAdvancing(true);
 							try {
 								await onNextTier();
 								setShowToast(true);
 								setTimeout(() => setShowToast(false), 2000);
 							} finally {
-								setLoadingTier(false);
+								setIsAdvancing(false);
 							}
 						}}
-						disabled={loadingTier}
+						disabled={isAdvancing}
+						aria-disabled={isAdvancing}
+						aria-busy={isAdvancing}
 						className="bg-white text-gray-800 px-8 py-3 rounded-xl font-semibold border border-gray-300 hover:bg-gray-50 transition shadow relative disabled:opacity-75 w-56"
 					>
-						{loadingTier ? (
+						{isAdvancing ? (
 							<>
-								<span className="inline-block animate-spin mr-2">⏳</span>
-								{nextTier === 'expert' ? 'Preparing Expert Level…' : 'Preparing next level...'}
-								<span className="block text-xs opacity-0 select-none">Next Level: {nextTier} →</span>
+								<span className="inline-block h-4 w-4 align-[-2px] rounded-full border-2 border-gray-400 border-t-transparent animate-spin mr-2" aria-hidden="true" />
+								<span role="status" aria-live="polite">Loading next level…</span>
 							</>
 						) : (
 							<>
-								Next Level
-								<span className="block text-xs opacity-80">Next Level: {nextTier} →</span>
+								Next Level – {nextTier.charAt(0).toUpperCase() + nextTier.slice(1)}
 							</>
 						)}
 					</button>
