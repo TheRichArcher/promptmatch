@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import TrainingSummary from '@/components/TrainingSummary';
 import { getNextTier, getTierFromScore, type Tier } from '@/lib/tiers';
+import { saveRoundState } from '@/lib/trainingUtils';
 
 type Target = { goldToken: string; imageDataUrl: string };
 type TrainingState = {
@@ -129,6 +130,11 @@ export default function TrainingMode() {
 		// Clear the input whenever the round changes
 		setPrompt('');
 	}, [training.round]);
+
+	// Persist minimal round state between renders (session-only)
+	useEffect(() => {
+		saveRoundState({ round: training.round, roundsTotal: training.roundsTotal });
+	}, [training.round, training.roundsTotal]);
 
 	const currentTarget = training.targets[training.round - 1];
 
@@ -308,6 +314,7 @@ export default function TrainingMode() {
 					Math.max(0, Math.round(((training.round - 1) / Math.max(1, training.roundsTotal)) * 100)),
 				);
 				const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
+				const isFinalRound = training.round === training.roundsTotal;
 				return (
 					<div className="mb-6 animate-fadeIn">
 						<div className="flex items-center justify-between gap-3">
@@ -315,13 +322,17 @@ export default function TrainingMode() {
 								Level: {tierLabel}
 							</span>
 							<h2 className="text-2xl font-bold text-center flex-1">
-								Round {training.round} of {training.roundsTotal}
+								{isFinalRound ? 'Final Round!' : (
+									<>
+										Round {training.round} of {training.roundsTotal}
+									</>
+								)}
 							</h2>
 							<span className="hidden sm:inline text-sm text-gray-500">{progressPercent}%</span>
 						</div>
 						<div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
 							<div
-								className="h-2 bg-primary-600 transition-all"
+								className="h-2 bg-primary-600 transition-all duration-700 ease-out"
 								style={{ width: `${progressPercent}%` }}
 							/>
 						</div>

@@ -11,4 +11,38 @@ export function pickNextLevel(score: number): string {
 	return 'Advanced Challenge';
 }
 
+export type RoundState = {
+	round: number;
+	roundsTotal: number;
+};
+
+const ROUND_STATE_KEY = 'pm-round-state';
+
+export function saveRoundState(state: RoundState) {
+	if (typeof window === 'undefined') return;
+	try {
+		window.sessionStorage.setItem(ROUND_STATE_KEY, JSON.stringify(state));
+	} catch {
+		// ignore storage errors
+	}
+}
+
+export function loadRoundState(): RoundState | null {
+	if (typeof window === 'undefined') return null;
+	try {
+		const raw = window.sessionStorage.getItem(ROUND_STATE_KEY);
+		return raw ? (JSON.parse(raw) as RoundState) : null;
+	} catch {
+		return null;
+	}
+}
+
+export function clearRoundState() {
+	if (typeof window === 'undefined') return;
+	try {
+		window.sessionStorage.removeItem(ROUND_STATE_KEY);
+	} catch {
+		// ignore storage errors
+	}
+}
 
