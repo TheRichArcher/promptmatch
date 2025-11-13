@@ -24,6 +24,34 @@ function extractImageDataUrl(parts: any[]): string | null {
 	return null;
 }
 
+function hashString(input: string): number {
+	let h = 0;
+	for (let i = 0; i < input.length; i++) {
+		h = Math.imul(31, h) + input.charCodeAt(i);
+		h |= 0;
+	}
+	return Math.abs(h);
+}
+
+function buildPlaceholderSvg(prompt: string): string {
+	const colors = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
+	const idx = hashString(prompt) % colors.length;
+	const color = colors[idx];
+	const shape = hashString(prompt + 'shape') % 2 === 0 ? 'circle' : 'rect';
+	const safeText = prompt.replace(/[<>&"]/g, (m) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[m] as string));
+	const svg =
+		`<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">` +
+		`<defs><linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f8fafc"/></linearGradient></defs>` +
+		`<rect x="0" y="0" width="512" height="512" fill="url(#bg)"/>` +
+		(shape === 'circle'
+			? `<circle cx="256" cy="256" r="140" fill="${color}" />`
+			: `<rect x="146" y="146" width="220" height="220" rx="24" fill="${color}" />`) +
+		`<text x="256" y="440" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="20" text-anchor="middle" fill="#334155" opacity="0.85">Demo image for: ${safeText.substring(0, 42)}</text>` +
+		`</svg>`;
+	const b64 = Buffer.from(svg, 'utf8').toString('base64');
+	return `data:image/svg+xml;base64,${b64}`;
+}
+
 export async function POST(req: NextRequest) {
 	try {
 		const body = await req.json();
@@ -32,9 +60,10 @@ export async function POST(req: NextRequest) {
 			return NextResponse.json({ error: 'Missing prompt' }, { status: 400 });
 		}
 
+		// If no API key, return a deterministic placeholder so flows still work in demo/prod without keys
 		if (!process.env.GOOGLE_API_KEY) {
-			console.error('[generate] Missing GOOGLE_API_KEY');
-			return NextResponse.json({ error: 'Missing API key' }, { status: 500 });
+			const placeholder = buildPlaceholderSvg(prompt);
+			return NextResponse.json({ image: placeholder, imageDataUrl: placeholder, provider: 'placeholder' }, { status: 200 });
 		}
 
 		console.log('[generate] Gemini images request');
