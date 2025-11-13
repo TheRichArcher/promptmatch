@@ -40,6 +40,7 @@ export default function TrainingMode() {
 	const [errorMsg, setErrorMsg] = useState<string>('');
 	const [tierNotice, setTierNotice] = useState<string>('');
 	const [isLevelLoading, setIsLevelLoading] = useState<boolean>(false);
+	const [isAdvancingRound, setIsAdvancingRound] = useState<boolean>(false);
 	const initializingRef = useRef(initializing);
 	useEffect(() => {
 		initializingRef.current = initializing;
@@ -209,6 +210,7 @@ export default function TrainingMode() {
 		if (lastSubmittedRound !== training.round) {
 			return;
 		}
+		setIsAdvancingRound(true);
 		setLastSubmittedRound(null);
 		setLastScore(null);
 		setLastNote('');
@@ -286,7 +288,15 @@ export default function TrainingMode() {
 	}
 
 	return (
-		<div className="max-w-5xl mx-auto">
+		<div className="max-w-5xl mx-auto relative">
+			{isAdvancingRound ? (
+				<div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 backdrop-blur-sm animate-fadeIn">
+					<div className="flex flex-col items-center">
+						<div className="h-10 w-10 rounded-full border-2 border-primary-600 border-t-transparent animate-spin mb-3" />
+						<p className="text-sm text-gray-700">Loading next round...</p>
+					</div>
+				</div>
+			) : null}
 			{tierNotice ? (
 				<div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 p-3 text-sm">
 					{tierNotice} Using a lower-tier pool for now.
@@ -323,7 +333,14 @@ export default function TrainingMode() {
 			<div className="grid md:grid-cols-2 gap-8">
 				<div>
 					<h3 className="font-semibold mb-2">Target Image</h3>
-					{currentTarget ? <img src={currentTarget.imageDataUrl} alt="Target" className="w-full rounded-lg shadow-lg" /> : null}
+					{currentTarget ? (
+						<img
+							src={currentTarget.imageDataUrl}
+							alt="Target"
+							className="w-full rounded-lg shadow-lg"
+							onLoad={() => setIsAdvancingRound(false)}
+						/>
+					) : null}
 				</div>
 				<div>
 					<h3 className="font-semibold mb-2">Your Image</h3>
@@ -342,7 +359,7 @@ export default function TrainingMode() {
 							/>
 							<button
 								onClick={handleSubmit}
-								disabled={loading || !prompt || !currentTarget}
+								disabled={loading || isAdvancingRound || !prompt || !currentTarget}
 								className="btn mt-3 w-full"
 							>
 								{loading ? 'Scoring...' : 'Generate & Score'}
@@ -356,7 +373,7 @@ export default function TrainingMode() {
 							) : null}
 							<button
 								onClick={goNextRound}
-								disabled={loading}
+								disabled={loading || isAdvancingRound}
 								className="btn mt-3 w-full"
 							>
 								{training.round === training.roundsTotal ? 'View Results' : 'Next Round'}
