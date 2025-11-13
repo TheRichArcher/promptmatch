@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
 		const projectRoot = process.cwd();
 		const { picks, usedTier } = await pickUniqueImagesWithFallback(projectRoot, tier, 5);
 		if (picks.length > 0) {
+			console.log('[train/init]', '✅ Tiered pool loaded', picks.length, 'tier:', usedTier);
 			const targets = picks.map(({ abs, label }) => {
 				const goldToken = sealGoldPrompt(cleanGoldPrompt(label));
 				return {
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest) {
 		}
 
 		// Fallback: generate on the fly using text prompts
+		console.log('[train/init]', '⚠️ No local images found — falling back to generator', 'requested tier:', tier);
 		const prompts = selectRandomTargets(5);
 		const baseUrl = resolveBaseUrl(req);
 		const targets = await Promise.all(
