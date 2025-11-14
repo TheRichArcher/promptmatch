@@ -55,6 +55,8 @@ export async function POST(req: NextRequest) {
 				return {
 					goldToken,
 					imageDataUrl: fileToDataUrl(abs),
+					label,
+					tier: usedTier,
 				};
 			});
 			let notice: string | undefined = undefined;
@@ -86,7 +88,8 @@ export async function POST(req: NextRequest) {
 				if (!res.ok) throw new Error(data?.error || 'Failed to generate image');
 				const imageDataUrl: string | null = data?.image ?? data?.imageDataUrl ?? null;
 				if (!imageDataUrl) throw new Error('No image data returned from /api/generate');
-				return { goldToken: sealGoldPrompt(cleanGoldPrompt(prompt)), imageDataUrl };
+				const label = cleanGoldPrompt(prompt);
+				return { goldToken: sealGoldPrompt(label), imageDataUrl, label, tier };
 			}),
 		);
 

@@ -1,16 +1,24 @@
 import type { Tier } from '@/lib/tiers';
 
+type TargetMetadata = { label?: string; goldPrompt?: string; tier?: Tier };
+
 export function generateFeedback(
-	target: string,
+	target: string | TargetMetadata,
 	prompt: string,
 	score: number,
 	opts?: { tier?: Tier },
 ): { note: string; tip: string } {
-	// Tier-aware simplified coaching for Easy tier
-	if (opts?.tier === 'easy') {
+	// If metadata provided, prefer metadata-driven feedback as specified
+	if (typeof target === 'object' && target) {
+		if (score >= 90) {
+			return { note: 'Mastered!', tip: 'Ready for next tier' };
+		}
+		const label = String(target.label || '').trim();
+		const gold = String(target.goldPrompt || label || '').trim();
+		const labelTip = label ? label.split(/\s+/).join(' + ') : 'color + shape';
 		return {
-			note: 'Try: "green triangle"',
-			tip: 'Use 2–3 words: color + shape',
+			note: gold ? `Try: "${gold}"` : 'Try 2–3 words matching the subject',
+			tip: `Use 2–3 words: ${labelTip}`,
 		};
 	}
 	// Small pool of generic but varied prompting tips for when no specific attributes are detected

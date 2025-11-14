@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
 		const body = await req.json();
 		const prompt = String(body?.prompt ?? '');
 		let targetDescription = String(body?.targetDescription ?? '');
+			const targetMeta = (body?.targetMeta && typeof body.targetMeta === 'object') ? (body.targetMeta as { label?: string; tier?: Tier; goldPrompt?: string }) : undefined;
 		const targetToken = typeof body?.targetToken === 'string' ? (body.targetToken as string) : '';
 		const targetImage = typeof body?.targetImage === 'string' ? (body.targetImage as string) : '';
 		const generatedImage = typeof body?.generatedImage === 'string' ? (body.generatedImage as string) : '';
@@ -69,15 +70,15 @@ export async function POST(req: NextRequest) {
 				const similarity = cosineSimilarity(v1, v2);
 				const similarity01 = Math.max(0, Math.min(1, (similarity + 1) / 2));
 				let aiScore = Math.round(similarity01 * 100);
-				// Tier-aware EASY boost
-				if (tier === 'easy') {
+				// Tier boost ONLY for easy with short prompt and label match
+				if (targetMeta?.tier === 'easy') {
 					const words = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
-					if (words > 0 && words <= 3) aiScore = Math.min(100, aiScore + 15);
-					if (String(prompt || '').toLowerCase().includes('triangle') && String(targetDescription || '').toLowerCase().includes('triangle')) {
-						aiScore = Math.max(aiScore, 95);
+					const firstLabelWord = String(targetMeta?.label || '').trim().split(/\s+/)[0]?.toLowerCase();
+					if (words > 0 && words <= 3 && firstLabelWord && String(prompt || '').toLowerCase().includes(firstLabelWord)) {
+						aiScore = Math.min(100, aiScore + 12);
 					}
 				}
-				const feedback = generateFeedback(targetDescription, prompt, aiScore, { tier });
+				const feedback = generateFeedback(targetMeta ?? targetDescription, prompt, aiScore, { tier });
 				return NextResponse.json(
 					{
 						aiScore,
@@ -95,15 +96,15 @@ export async function POST(req: NextRequest) {
 			const simJ = jaccardSimilarity(prompt, targetDescription);
 			const bonus = heuristicPromptBonus(prompt);
 			let aiScore = computeFinalScore(simJ, bonus);
-			// Tier-aware EASY boost
-			if (tier === 'easy') {
+			// Tier boost ONLY for easy with short prompt and label match
+			if (targetMeta?.tier === 'easy') {
 				const words = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
-				if (words > 0 && words <= 3) aiScore = Math.min(100, aiScore + 15);
-				if (String(prompt || '').toLowerCase().includes('triangle') && String(targetDescription || '').toLowerCase().includes('triangle')) {
-					aiScore = Math.max(aiScore, 95);
+				const firstLabelWord = String(targetMeta?.label || '').trim().split(/\s+/)[0]?.toLowerCase();
+				if (words > 0 && words <= 3 && firstLabelWord && String(prompt || '').toLowerCase().includes(firstLabelWord)) {
+					aiScore = Math.min(100, aiScore + 12);
 				}
 			}
-			const feedback = generateFeedback(targetDescription, prompt, aiScore, { tier });
+			const feedback = generateFeedback(targetMeta ?? targetDescription, prompt, aiScore, { tier });
 			return NextResponse.json(
 				{
 					aiScore,
@@ -125,15 +126,15 @@ export async function POST(req: NextRequest) {
 
 		const bonus = heuristicPromptBonus(prompt);
 		let aiScore = computeFinalScore(similarity01, bonus);
-		// Tier-aware EASY boost
-		if (tier === 'easy') {
+		// Tier boost ONLY for easy with short prompt and label match
+		if (targetMeta?.tier === 'easy') {
 			const words = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
-			if (words > 0 && words <= 3) aiScore = Math.min(100, aiScore + 15);
-			if (String(prompt || '').toLowerCase().includes('triangle') && String(targetDescription || '').toLowerCase().includes('triangle')) {
-				aiScore = Math.max(aiScore, 95);
+			const firstLabelWord = String(targetMeta?.label || '').trim().split(/\s+/)[0]?.toLowerCase();
+			if (words > 0 && words <= 3 && firstLabelWord && String(prompt || '').toLowerCase().includes(firstLabelWord)) {
+				aiScore = Math.min(100, aiScore + 12);
 			}
 		}
-		const feedback = generateFeedback(targetDescription, prompt, aiScore, { tier });
+		const feedback = generateFeedback(targetMeta ?? targetDescription, prompt, aiScore, { tier });
 
 		return NextResponse.json(
 			{

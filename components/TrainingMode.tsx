@@ -6,7 +6,7 @@ import ProgressHeader from '@/components/ProgressHeader';
 import { getNextTier, getTierFromScore, type Tier } from '@/lib/tiers';
 import { saveRoundState, loadLevelState, saveLevelState, incrementLevel, type LevelState } from '@/lib/trainingUtils';
 
-type Target = { goldToken: string; imageDataUrl: string };
+type Target = { goldToken: string; imageDataUrl: string; label?: string; tier?: Tier };
 type TrainingState = {
 	round: number;
 	prompts: string[];
@@ -199,6 +199,11 @@ export default function TrainingMode() {
 					targetImage: targetDown,
 					generatedImage: genImage,
 					tier,
+					targetMeta: {
+						label: currentTarget?.label ?? '',
+						tier: currentTarget?.tier ?? tier,
+						goldPrompt: undefined,
+					},
 				}, 1);
 			if (!scoreResp.ok) throw new Error(scoreResp.json?.error || 'Failed to score image');
 			const scoreJson = scoreResp.json;
