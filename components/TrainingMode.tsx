@@ -39,7 +39,12 @@ export default function TrainingMode() {
 	const [lastNote, setLastNote] = useState<string>('');
 	const [lastTip, setLastTip] = useState<string>('');
 	const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-	const [tier, setTier] = useState<Tier>('easy');
+	const [tier, setTier] = useState<Tier>(() => {
+		const ORDER: Tier[] = ['easy', 'medium', 'hard', 'advanced', 'expert'];
+		const saved = loadLevelState(5);
+		const idx = Math.min(Math.max(1, Number(saved.current) || 1), ORDER.length) - 1;
+		return ORDER[idx];
+	});
 	const [errorMsg, setErrorMsg] = useState<string>('');
 	const [tierNotice, setTierNotice] = useState<string>('');
 	const [isLevelLoading, setIsLevelLoading] = useState<boolean>(false);
