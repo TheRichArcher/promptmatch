@@ -12,7 +12,7 @@ export function getGenerationPrompt(tier: string): string {
 			// 'cyan rectangle',
 		];
 		const shape = shapes[Math.floor(Math.random() * shapes.length)];
-		return `flat 2D ${shape} centered on plain white background, vector style, no shadows, no texture, no lighting, clean edges, minimal design`;
+		return shape;
 	}
 	const easy = [
 		'green triangle on white background',
