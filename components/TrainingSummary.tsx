@@ -95,6 +95,8 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 		setIsAdvancing(true);
 		setIsLoadingNext(true);
 		setLoadingMessage('Loading next level…');
+		// Ensure overlay is visible before heavy work begins
+		await new Promise((r) => setTimeout(r, 600));
 		// Fallback nudger after 60s if still loading
 		const fallbackTimer = setTimeout(() => {
 			if (isLoadingNext) {
