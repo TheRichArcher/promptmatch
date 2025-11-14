@@ -51,7 +51,7 @@ export function generateFeedback(
 		if (t.includes('rain') || t.includes('wet')) missing.push('weather');
 		if (t.includes('reflection') || t.includes('glass')) missing.push('reflections');
 		return {
-			note: missing.length ? `Try adding: ${missing.join(', ')} for 95+` : 'Perfect! You’ve unlocked Expert Mode.',
+			note: missing.length ? `Try adding: ${missing.join(', ')} for 95+` : 'Perfect! You matched the Gold Prompt.',
 			tip: 'Focus on: atmosphere, weather, reflections',
 		};
 	}
