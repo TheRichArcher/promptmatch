@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import type { Tier } from '@/lib/tiers';
 import { tierToPath } from '@/lib/tiers';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { env } from '@/lib/env';
 
 // Tracks used absolute file paths to avoid repeats across sessions (per server instance)
 const usedImages = new Set<string>();
@@ -62,7 +63,7 @@ function extractImageFromParts(parts: any[]): { dataUrl: string | null; mime?: s
 }
 
 export async function autoPopulateTierImages(projectRoot: string, tier: Tier): Promise<number> {
-	const apiKey = process.env.GOOGLE_API_KEY;
+	const apiKey = env.GOOGLE_API_KEY;
 	if (!apiKey) {
 		console.warn('[autogen] Missing GOOGLE_API_KEY; cannot generate tier images');
 		return 0;
@@ -197,6 +198,15 @@ export async function pickUniqueImagesWithFallback(
 	let picks = await pickUniqueImages(projectRoot, requestedTier, count);
 	if (picks.length > 0) {
 		return { picks, usedTier: requestedTier };
+	}
+	// If Advanced is empty and we have an API key, proactively autogen before falling back
+	if (requestedTier === 'advanced' && Boolean(env.GOOGLE_API_KEY)) {
+		console.log('[tieredTargets] Autogenerating advanced images...');
+		await autoPopulateTierImages(projectRoot, 'advanced');
+		picks = await pickUniqueImages(projectRoot, 'advanced', count);
+		if (picks.length > 0) {
+			return { picks, usedTier: 'advanced' };
+		}
 	}
 	// Only fall back for challenge tiers
 	const fallbackOrder: Tier[] =

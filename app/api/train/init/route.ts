@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { selectRandomTargets } from '@/lib/trainingTargets';
 import type { Tier } from '@/lib/tiers';
-import { clearUsedImages, fileToDataUrl, pickUniqueImagesWithFallback } from '@/lib/tieredTargets';
+import { clearUsedImages, fileToDataUrl, getPoolForTier, pickUniqueImagesWithFallback } from '@/lib/tieredTargets';
 import { sealGoldPrompt } from '@/lib/secureText';
 
 export const runtime = 'nodejs';
@@ -43,6 +43,9 @@ export async function POST(req: NextRequest) {
 
 		// Prefer tiered image pools if available
 		const projectRoot = process.cwd();
+		// Observe initial pool state for Advanced to emit a helpful notice
+		const initialAdvancedPoolCount =
+			tier === 'advanced' ? getPoolForTier(projectRoot, 'advanced').absPaths.length : -1;
 		const { picks, usedTier } = await pickUniqueImagesWithFallback(projectRoot, tier, 5);
 		if (picks.length > 0) {
 			console.log('[train/init]', '✅ Tiered pool loaded', picks.length, 'tier:', usedTier);
@@ -53,10 +56,15 @@ export async function POST(req: NextRequest) {
 					imageDataUrl: fileToDataUrl(abs),
 				};
 			});
-			const notice =
-				tier === 'expert' && usedTier !== tier
-					? "Expert tier coming soon! You’ve mastered all current challenges."
-					: undefined;
+			let notice: string | undefined = undefined;
+			// If we fell back from the requested tier, let the user know
+			if (tier === 'expert' && usedTier !== tier) {
+				notice = "Expert tier coming soon! You’ve mastered all current challenges.";
+			} else if (tier === 'advanced' && usedTier !== tier) {
+				notice = 'Using a lower-tier pool while we build Advanced.';
+			} else if (tier === 'advanced' && initialAdvancedPoolCount === 0 && usedTier === 'advanced') {
+				notice = 'Generating new Advanced challenge set…';
+			}
 			return NextResponse.json({ targets, tier, notice }, { status: 200 });
 		}
 

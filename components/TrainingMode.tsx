@@ -331,7 +331,7 @@ export default function TrainingMode() {
 			) : null}
 			{tierNotice ? (
 				<div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 p-3 text-sm">
-					{tierNotice} Using a lower-tier pool for now.
+					{tierNotice}
 				</div>
 			) : null}
 			<div className="mb-6 animate-fadeIn">
