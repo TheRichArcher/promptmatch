@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: promptmatch
+    runtime: node
+    plan: free
+    buildCommand: |
+      pnpm install --no-frozen-lockfile
+      npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: NODE_ENV
+        value: production
+    autoDeploy: true
+    healthCheckPath: /api/health
+# If you deploy as a Static Site instead (not recommended for SSR/APIs), you can use:
+# staticPublishPath: .next
+# Adding/adjusting this path will force a re-upload of static assets (cache invalidation).
+
+

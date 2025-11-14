@@ -7,6 +7,14 @@ import { getGenerationPrompt } from '@/lib/autogenTargets';
 
 export const runtime = 'nodejs';
 
+function sseEncode(data: any): string {
+	try {
+		return `data: ${JSON.stringify(data)}\n\n`;
+	} catch {
+		return `data: {}\n\n`;
+	}
+}
+
 function resolveBaseUrl(req: NextRequest): string {
 	const envUrl = process.env.NEXT_PUBLIC_URL;
 	if (envUrl) return envUrl.replace(/\/+$/, '');
@@ -37,9 +45,84 @@ export async function POST(req: NextRequest) {
 	try {
 		const body = await req.json().catch(() => ({}));
 		const tier: Tier = (body?.tier as Tier) || 'medium';
+		const stream: boolean = Boolean(body?.stream);
 		const resetUsed = Boolean(body?.resetUsed);
 		if (resetUsed) {
 			clearUsedImages();
+		}
+
+		// Optional streaming mode for progressive status updates (helps avoid 502 timeouts)
+		if (stream) {
+			const stream = new ReadableStream({
+				async start(controller) {
+					const enqueue = (evt: any) => controller.enqueue(new TextEncoder().encode(sseEncode(evt)));
+					try {
+						enqueue({ status: 'starting', tier });
+						// Prefer tiered image pools if available
+						const projectRoot = process.cwd();
+						enqueue({ status: 'checking-pool' });
+						const initialAdvancedPoolCount =
+							tier === 'advanced' ? getPoolForTier(projectRoot, 'advanced').absPaths.length : -1;
+						const { picks, usedTier } = await pickUniqueImagesWithFallback(projectRoot, tier, 5);
+						if (picks.length > 0) {
+							enqueue({ status: 'loaded-pool', usedTier, count: picks.length });
+							const targets = picks.map(({ abs, label }) => {
+								const goldToken = sealGoldPrompt(cleanGoldPrompt(label));
+								return {
+									goldToken,
+									imageDataUrl: fileToDataUrl(abs),
+									label,
+									tier: usedTier,
+								};
+							});
+							let notice: string | undefined = undefined;
+							if (tier === 'expert' && usedTier !== tier) {
+								notice = "Expert tier coming soon! You’ve mastered all current challenges.";
+							} else if (tier === 'advanced' && usedTier !== tier) {
+								notice = 'Using a lower-tier pool while we build Advanced.';
+							} else if (tier === 'advanced' && initialAdvancedPoolCount === 0 && usedTier === 'advanced') {
+								notice = 'Generating new Advanced challenge set…';
+							}
+							enqueue({ status: 'done', targets, tier, notice });
+							controller.close();
+							return;
+						}
+						enqueue({ status: 'falling-back-to-generator' });
+						const prompts = Array.from({ length: 5 }, () => getGenerationPrompt(tier)) || selectRandomTargets(5);
+						const baseUrl = resolveBaseUrl(req);
+						const targets = await Promise.all(
+							prompts.map(async (prompt) => {
+								const res = await fetch(`${baseUrl}/api/generate`, {
+									method: 'POST',
+									headers: { 'Content-Type': 'application/json' },
+									body: JSON.stringify({ prompt }),
+									next: { revalidate: 0 },
+								});
+								const data = await res.json();
+								if (!res.ok) throw new Error(data?.error || 'Failed to generate image');
+								const imageDataUrl: string | null = data?.image ?? data?.imageDataUrl ?? null;
+								if (!imageDataUrl) throw new Error('No image data returned from /api/generate');
+								const label = cleanGoldPrompt(prompt);
+								return { goldToken: sealGoldPrompt(label), imageDataUrl, label, tier };
+							}),
+						);
+						enqueue({ status: 'done', targets, tier });
+						controller.close();
+					} catch (err: any) {
+						enqueue({ status: 'error', error: err?.message ?? 'Unknown error' });
+						controller.close();
+					}
+				},
+			});
+			return new Response(stream, {
+				status: 200,
+				headers: {
+					'Content-Type': 'text/event-stream',
+					'Cache-Control': 'no-cache, no-transform',
+					Connection: 'keep-alive',
+					'X-Accel-Buffering': 'no',
+				},
+			});
 		}
 
 		// Prefer tiered image pools if available

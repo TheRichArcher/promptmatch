@@ -266,7 +266,15 @@ export default function TrainingMode() {
 	}
 
 	if (initializing && training.round === 1) {
-		return <p className="text-center">Generating training images...</p>;
+		return (
+			<div className="fixed inset-0 z-40 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+				<div className="flex flex-col items-center">
+					<div className="h-12 w-12 rounded-full border-2 border-primary-600 border-t-transparent animate-spin mb-4" />
+					<p className="text-base text-gray-800 font-medium">Loading your next level…</p>
+					<p className="text-sm text-gray-600 mt-1">Generating images (this can take ~30 seconds).</p>
+				</div>
+			</div>
+		);
 	}
 
 	if (training.isComplete) {
