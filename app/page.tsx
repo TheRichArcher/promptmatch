@@ -52,7 +52,7 @@ export default function HomePage() {
 				<ModeCard
 					title="🪄 Tutorial"
 					description="Simple shapes & objects with guided tips."
-					href="/train?tutorial=true"
+					href="/tutorial"
 					style={{ animationDelay: '80ms' }}
 				/>
 				<ModeCard
