@@ -70,7 +70,7 @@ export async function autoPopulateTierImages(projectRoot: string, tier: Tier): P
 	}
 
 	const promptsByTier: Record<Tier, string[]> = {
-		easy: ['red circle on white background', 'blue square', 'green triangle', 'yellow star icon', 'purple heart icon'],
+		easy: ['red circle on white background', 'blue square', 'green triangle', 'yellow star icon', 'yellow heart icon'],
 		medium: ['apple on table', 'cup of coffee on desk', 'toy car on floor', 'slice of pizza on plate', 'yellow rubber duck'],
 		hard: ['city street at night', 'bowl of ramen with chopsticks', 'stack of books on desk', 'lighthouse at sunset', 'robot in a garden'],
 		advanced: ['person under umbrella in rain', 'cat painting a picture', 'crowd at concert', 'skateboard on sunny beach boardwalk', 'vintage car at dusk'],
