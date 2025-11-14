@@ -10,6 +10,20 @@ export default function TutorialPage() {
 	const [userPrompt, setUserPrompt] = useState<string>('');
 	const [showResult, setShowResult] = useState<boolean>(false);
 	const result = useMemo(() => evaluateTutorialPrompt(userPrompt), [userPrompt]);
+	const tutorialImages = useMemo(
+		() => [
+			'/tutorial/red-ball.svg',
+			'/tutorial/yellow-duck.svg',
+			'/tutorial/coffee-cup.svg',
+			'/tutorial/toy-car.svg',
+			'/tutorial/pizza-slice.svg',
+		],
+		[]
+	);
+	const sampleImage = useMemo(
+		() => tutorialImages[Math.floor(Math.random() * tutorialImages.length)],
+		[tutorialImages]
+	);
 
 	const handleFakeScore = useCallback(() => {
 		setShowResult(true);
@@ -37,9 +51,16 @@ export default function TutorialPage() {
 
 						<div className="grid grid-cols-1 gap-4 text-center sm:grid-cols-3">
 							<div>
-								<div className="bg-gray-200 border-2 border-dashed rounded-xl w-24 h-24 mx-auto mb-2" />
+								<div className="bg-white rounded-xl p-1 shadow-sm w-24 mx-auto mb-2">
+									<img
+										src={sampleImage}
+										alt="Example target image"
+										className="rounded-lg shadow-md border border-gray-200 w-24 h-24 object-cover"
+									/>
+								</div>
 								<p className="font-semibold">1. See the Target</p>
 								<p className="text-xs text-gray-600">Study every detail</p>
+								<p className="text-xs text-gray-500 mt-1">Example target</p>
 							</div>
 							<div>
 								<div className="bg-blue-100 rounded-xl p-2 mx-auto mb-2 w-24 h-24 flex items-center justify-center">
