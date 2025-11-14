@@ -5,6 +5,28 @@ import { tierToPath } from '@/lib/tiers';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '@/lib/env';
 
+export const EASY_SEEDS = [
+	'red circle',
+	'blue square',
+	'green triangle',
+	'yellow star',
+	'orange diamond',
+	'pink oval',
+	'black hexagon',
+	// Removed cyan to keep to primary/commonly known colors
+	// 'cyan rectangle',
+];
+
+export function getEasyTarget(round: number): { url: string; label: string; goldPrompt: string; tier: 'easy' } {
+	const seed = EASY_SEEDS[round % EASY_SEEDS.length];
+	return {
+		url: `/targets/easy/${seed.replace(' ', '-')}.png`,
+		label: seed,
+		goldPrompt: seed,
+		tier: 'easy',
+	};
+}
+
 // Tracks used absolute file paths to avoid repeats across sessions (per server instance)
 const usedImages = new Set<string>();
 

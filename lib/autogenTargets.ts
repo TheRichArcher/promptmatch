@@ -1,4 +1,19 @@
 export function getGenerationPrompt(tier: string): string {
+	if (tier === 'easy') {
+		const shapes = [
+			'red circle',
+			'blue square',
+			'green triangle',
+			'yellow star',
+			'orange diamond',
+			'pink oval',
+			'black hexagon',
+			// Removed cyan per requirement
+			// 'cyan rectangle',
+		];
+		const shape = shapes[Math.floor(Math.random() * shapes.length)];
+		return `flat 2D ${shape} centered on plain white background, vector style, no shadows, no texture, no lighting, clean edges, minimal design`;
+	}
 	const easy = [
 		'green triangle on white background',
 		'red circle on gray floor',

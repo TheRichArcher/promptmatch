@@ -8,6 +8,15 @@ export function generateFeedback(
 	score: number,
 	opts?: { tier?: Tier },
 ): { note: string; tip: string } {
+	// Always show gold prompt for Easy tier
+	if (typeof target === 'object' && target?.tier === 'easy') {
+		const label = String(target.label || '').trim();
+		const gold = String(target.goldPrompt || label || '').trim();
+		return {
+			note: gold ? `Try: "${gold}"` : 'Try: use color + shape',
+			tip: 'Use 2–3 words: color + shape',
+		};
+	}
 	// If metadata provided, prefer metadata-driven feedback as specified
 	if (typeof target === 'object' && target) {
 		if (score >= 90) {

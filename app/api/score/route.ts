@@ -70,12 +70,12 @@ export async function POST(req: NextRequest) {
 				const similarity = cosineSimilarity(v1, v2);
 				const similarity01 = Math.max(0, Math.min(1, (similarity + 1) / 2));
 				let aiScore = Math.round(similarity01 * 100);
-				// Tier boost ONLY for easy with short prompt and label match
+				// Easy = 95 guaranteed when prompt <=3 words and matches all label words (color + shape)
 				if (targetMeta?.tier === 'easy') {
-					const words = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
-					const firstLabelWord = String(targetMeta?.label || '').trim().split(/\s+/)[0]?.toLowerCase();
-					if (words > 0 && words <= 3 && firstLabelWord && String(prompt || '').toLowerCase().includes(firstLabelWord)) {
-						aiScore = Math.min(100, aiScore + 12);
+					const promptWords = String(prompt || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+					const labelWords = String(targetMeta?.label || '').toLowerCase().split(/\s+/).filter(Boolean);
+					if (promptWords.length > 0 && promptWords.length <= 3 && labelWords.every((w) => promptWords.includes(w))) {
+						aiScore = 95;
 					}
 				}
 				const feedback = generateFeedback(targetMeta ?? targetDescription, prompt, aiScore, { tier });
@@ -96,12 +96,12 @@ export async function POST(req: NextRequest) {
 			const simJ = jaccardSimilarity(prompt, targetDescription);
 			const bonus = heuristicPromptBonus(prompt);
 			let aiScore = computeFinalScore(simJ, bonus);
-			// Tier boost ONLY for easy with short prompt and label match
+			// Easy = 95 guaranteed when prompt <=3 words and matches all label words (color + shape)
 			if (targetMeta?.tier === 'easy') {
-				const words = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
-				const firstLabelWord = String(targetMeta?.label || '').trim().split(/\s+/)[0]?.toLowerCase();
-				if (words > 0 && words <= 3 && firstLabelWord && String(prompt || '').toLowerCase().includes(firstLabelWord)) {
-					aiScore = Math.min(100, aiScore + 12);
+				const promptWords = String(prompt || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+				const labelWords = String(targetMeta?.label || '').toLowerCase().split(/\s+/).filter(Boolean);
+				if (promptWords.length > 0 && promptWords.length <= 3 && labelWords.every((w) => promptWords.includes(w))) {
+					aiScore = 95;
 				}
 			}
 			const feedback = generateFeedback(targetMeta ?? targetDescription, prompt, aiScore, { tier });
@@ -126,12 +126,12 @@ export async function POST(req: NextRequest) {
 
 		const bonus = heuristicPromptBonus(prompt);
 		let aiScore = computeFinalScore(similarity01, bonus);
-		// Tier boost ONLY for easy with short prompt and label match
+		// Easy = 95 guaranteed when prompt <=3 words and matches all label words (color + shape)
 		if (targetMeta?.tier === 'easy') {
-			const words = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
-			const firstLabelWord = String(targetMeta?.label || '').trim().split(/\s+/)[0]?.toLowerCase();
-			if (words > 0 && words <= 3 && firstLabelWord && String(prompt || '').toLowerCase().includes(firstLabelWord)) {
-				aiScore = Math.min(100, aiScore + 12);
+			const promptWords = String(prompt || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+			const labelWords = String(targetMeta?.label || '').toLowerCase().split(/\s+/).filter(Boolean);
+			if (promptWords.length > 0 && promptWords.length <= 3 && labelWords.every((w) => promptWords.includes(w))) {
+				aiScore = 95;
 			}
 		}
 		const feedback = generateFeedback(targetMeta ?? targetDescription, prompt, aiScore, { tier });
