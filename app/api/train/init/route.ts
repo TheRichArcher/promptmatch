@@ -3,6 +3,7 @@ import { selectRandomTargets } from '@/lib/trainingTargets';
 import type { Tier } from '@/lib/tiers';
 import { clearUsedImages, fileToDataUrl, getPoolForTier, pickUniqueImagesWithFallback } from '@/lib/tieredTargets';
 import { sealGoldPrompt } from '@/lib/secureText';
+import { getGenerationPrompt } from '@/lib/autogenTargets';
 
 export const runtime = 'nodejs';
 
@@ -70,7 +71,8 @@ export async function POST(req: NextRequest) {
 
 		// Fallback: generate on the fly using text prompts
 		console.log('[train/init]', '⚠️ No local images found — falling back to generator', 'requested tier:', tier);
-		const prompts = selectRandomTargets(5);
+		// Prefer tier-aware prompts; fallback to legacy randoms if needed
+		const prompts = Array.from({ length: 5 }, () => getGenerationPrompt(tier)) || selectRandomTargets(5);
 		const baseUrl = resolveBaseUrl(req);
 		const targets = await Promise.all(
 			prompts.map(async (prompt) => {

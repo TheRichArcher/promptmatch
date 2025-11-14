@@ -3,6 +3,7 @@ import { computeFinalScore, heuristicPromptBonus, jaccardSimilarity } from '@/li
 import { embedImagesBase64, initTargetEmbeddings, dataUrlApproxBytes, cosineSimilarity } from '@/lib/vertex';
 import { generateFeedback } from '@/lib/feedbackEngine';
 import { unsealGoldPrompt } from '@/lib/secureText';
+import type { Tier } from '@/lib/tiers';
 
 export const runtime = 'nodejs';
 
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest) {
 		const targetToken = typeof body?.targetToken === 'string' ? (body.targetToken as string) : '';
 		const targetImage = typeof body?.targetImage === 'string' ? (body.targetImage as string) : '';
 		const generatedImage = typeof body?.generatedImage === 'string' ? (body.generatedImage as string) : '';
+		const tier: Tier | undefined = (body?.tier as Tier) || undefined;
 
 		if (!prompt || (!targetDescription && !targetToken)) {
 			return NextResponse.json({ error: 'Missing prompt or target reference' }, { status: 400 });
@@ -66,8 +68,16 @@ export async function POST(req: NextRequest) {
 				const [v1, v2] = vectors;
 				const similarity = cosineSimilarity(v1, v2);
 				const similarity01 = Math.max(0, Math.min(1, (similarity + 1) / 2));
-				const aiScore = Math.round(similarity01 * 100);
-				const feedback = generateFeedback(targetDescription, prompt, aiScore);
+				let aiScore = Math.round(similarity01 * 100);
+				// Tier-aware EASY boost
+				if (tier === 'easy') {
+					const words = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
+					if (words > 0 && words <= 3) aiScore = Math.min(100, aiScore + 15);
+					if (String(prompt || '').toLowerCase().includes('triangle') && String(targetDescription || '').toLowerCase().includes('triangle')) {
+						aiScore = Math.max(aiScore, 95);
+					}
+				}
+				const feedback = generateFeedback(targetDescription, prompt, aiScore, { tier });
 				return NextResponse.json(
 					{
 						aiScore,
@@ -84,8 +94,16 @@ export async function POST(req: NextRequest) {
 			// === ONLY FALLBACK IF VERTEX TRULY FAILED ===
 			const simJ = jaccardSimilarity(prompt, targetDescription);
 			const bonus = heuristicPromptBonus(prompt);
-			const aiScore = computeFinalScore(simJ, bonus);
-			const feedback = generateFeedback(targetDescription, prompt, aiScore);
+			let aiScore = computeFinalScore(simJ, bonus);
+			// Tier-aware EASY boost
+			if (tier === 'easy') {
+				const words = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
+				if (words > 0 && words <= 3) aiScore = Math.min(100, aiScore + 15);
+				if (String(prompt || '').toLowerCase().includes('triangle') && String(targetDescription || '').toLowerCase().includes('triangle')) {
+					aiScore = Math.max(aiScore, 95);
+				}
+			}
+			const feedback = generateFeedback(targetDescription, prompt, aiScore, { tier });
 			return NextResponse.json(
 				{
 					aiScore,
@@ -106,8 +124,16 @@ export async function POST(req: NextRequest) {
 		}
 
 		const bonus = heuristicPromptBonus(prompt);
-		const aiScore = computeFinalScore(similarity01, bonus);
-		const feedback = generateFeedback(targetDescription, prompt, aiScore);
+		let aiScore = computeFinalScore(similarity01, bonus);
+		// Tier-aware EASY boost
+		if (tier === 'easy') {
+			const words = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
+			if (words > 0 && words <= 3) aiScore = Math.min(100, aiScore + 15);
+			if (String(prompt || '').toLowerCase().includes('triangle') && String(targetDescription || '').toLowerCase().includes('triangle')) {
+				aiScore = Math.max(aiScore, 95);
+			}
+		}
+		const feedback = generateFeedback(targetDescription, prompt, aiScore, { tier });
 
 		return NextResponse.json(
 			{

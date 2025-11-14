@@ -1,8 +1,18 @@
+import type { Tier } from '@/lib/tiers';
+
 export function generateFeedback(
 	target: string,
 	prompt: string,
 	score: number,
+	opts?: { tier?: Tier },
 ): { note: string; tip: string } {
+	// Tier-aware simplified coaching for Easy tier
+	if (opts?.tier === 'easy') {
+		return {
+			note: 'Try: "green triangle"',
+			tip: 'Use 2–3 words: color + shape',
+		};
+	}
 	// Small pool of generic but varied prompting tips for when no specific attributes are detected
 	const GENERIC_TIPS = [
 		'Add a camera angle (macro, wide, overhead)',
@@ -41,6 +51,33 @@ export function generateFeedback(
 		// Collapse extra whitespace
 		t = t.replace(/\s{2,}/g, ' ').trim();
 		return t;
+	}
+
+	// Normalize/canonicalize labels or filenames into readable phrases
+	function getReadableLabel(label: string, tier?: Tier): string {
+		let s = String(label || '').replace(/[_-]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+		// Remove generic non-informative tokens
+		s = s.replace(/\b(shape|object|pattern|symbol|icon)\b/gi, ' ');
+		// For non-easy tiers, aggressively drop geometric primitives
+		if (tier && tier !== 'easy') {
+			s = s.replace(
+				/\b(circle|square|triangle|rectangle|star|heart|hexagon|octagon|polygon|line|dot)\b/gi,
+				' ',
+			);
+		}
+		// Collapse whitespace
+		s = s.replace(/\s{2,}/g, ' ').trim();
+		return s;
+	}
+
+	function removeShapeTerms(text: string): string {
+		return String(text || '')
+			.replace(
+				/\b(circle|square|triangle|rectangle|star|heart|hexagon|octagon|polygon|line|dot|icon|symbol|shape)\b/gi,
+				' ',
+			)
+			.replace(/\s{2,}/g, ' ')
+			.trim();
 	}
 
 	// High score: give specific finishing touches instead of generic praise
@@ -86,13 +123,16 @@ export function generateFeedback(
 	}
 
 	function extractSubject(text: string): string {
-		// Pick the first two non-stopword tokens as a cheap "subject" proxy.
-		const tokens = extractKeywords(text);
+		// Use cleaned label as the base, then pick the first two non-stopword tokens as a cheap "subject" proxy.
+		const cleaned = getReadableLabel(text, opts?.tier);
+		const tokens = extractKeywords(cleaned);
 		return tokens.slice(0, 2).join(' ') || 'target';
 	}
 
-	const targetKeywords = extractKeywords(targetLower);
-	const promptKeywords = extractKeywords(promptLower);
+	// For non-easy tiers, down-weight geometric primitives in keyword set
+	const effectiveTargetText = opts?.tier && opts.tier !== 'easy' ? removeShapeTerms(targetLower) : targetLower;
+	const targetKeywords = extractKeywords(effectiveTargetText);
+	const promptKeywords = extractKeywords(opts?.tier && opts.tier !== 'easy' ? removeShapeTerms(promptLower) : promptLower);
 
 	// What appears in the target description but not the user's prompt?
 	const missingKeywords = Array.from(new Set(targetKeywords.filter((w) => !promptKeywords.includes(w)))).slice(0, 8);
@@ -100,12 +140,12 @@ export function generateFeedback(
 	// Classify missing attributes for a clearer tip
 	const missingAttributes: string[] = [];
 	for (const [attr, words] of Object.entries(ATTR_HINTS)) {
-		if (words.some((w) => targetLower.includes(w)) && !words.some((w) => promptLower.includes(w))) {
+		if (words.some((w) => effectiveTargetText.includes(w)) && !words.some((w) => promptLower.includes(w))) {
 			missingAttributes.push(attr);
 		}
 	}
 
-	const subject = extractSubject(targetLower);
+	const subject = extractSubject(effectiveTargetText);
 	const attributesPart = missingKeywords.filter((w) => !subject.includes(w)).slice(0, 5).join(', ');
 
 	// Note is anchored to the TARGET, not the user's incorrect subject.
@@ -116,8 +156,14 @@ export function generateFeedback(
 			.map((s) => s.trim())
 			.filter(Boolean)
 			.join(' ');
-		const rawPhrase = `${attributesNounPhrase} ${subject}`.trim();
-		note = `Try: "${sanitizePhrase(rawPhrase)}"`;
+		let rawPhrase = `${attributesNounPhrase} ${subject}`.trim();
+		// As a final pass, for non-easy tiers prefer scene nouns over shapes
+		if (opts?.tier && opts.tier !== 'easy') {
+			rawPhrase = removeShapeTerms(rawPhrase);
+		}
+		const cleaned = sanitizePhrase(rawPhrase);
+		// Ensure we don't emit an empty suggestion
+		note = cleaned ? `Try: "${cleaned}"` : `Describe the ${subject} with specific color, lighting and placement.`;
 	} else {
 		note = `Describe the ${subject} with specific color, lighting and placement.`;
 	}

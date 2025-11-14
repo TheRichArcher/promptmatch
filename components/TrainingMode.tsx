@@ -198,6 +198,7 @@ export default function TrainingMode() {
 					targetToken: currentTarget.goldToken,
 					targetImage: targetDown,
 					generatedImage: genImage,
+					tier,
 				}, 1);
 			if (!scoreResp.ok) throw new Error(scoreResp.json?.error || 'Failed to score image');
 			const scoreJson = scoreResp.json;

@@ -146,6 +146,26 @@ export async function autoPopulateTierImages(projectRoot: string, tier: Tier): P
 		try {
 			const buf = Buffer.from(base64, 'base64');
 			fs.writeFileSync(filePath, buf);
+			// Write sidecar metadata for downstream analytics
+			try {
+				const difficultyMap: Record<Tier, number> = {
+					easy: 1,
+					medium: 2,
+					hard: 3,
+					advanced: 4,
+					expert: 5,
+				};
+				const meta = {
+					tier,
+					label: prompt.replace(/\s{2,}/g, ' ').trim(),
+					prompt,
+					difficulty: difficultyMap[tier],
+				};
+				const metaPath = path.join(absDir, `${slug}.json`);
+				fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), 'utf8');
+			} catch (e) {
+				console.warn('[autogen] failed to write metadata for', filePath, e);
+			}
 			generated += 1;
 		} catch (e) {
 			console.error('[autogen] failed to write file', filePath, e);
