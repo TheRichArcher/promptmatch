@@ -124,6 +124,14 @@ export default function TutorialPage() {
 										setUserPrompt(e.target.value);
 										setShowResult(false);
 									}}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter' && !e.shiftKey) {
+											e.preventDefault();
+											if (userPrompt.trim()) {
+												handleFakeScore();
+											}
+										}
+									}}
 									rows={5}
 								/>
 								<button
