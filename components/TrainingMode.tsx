@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import TrainingSummary from '@/components/TrainingSummary';
 import ProgressHeader from '@/components/ProgressHeader';
-import { getNextTier, getTierFromScore, type Tier } from '@/lib/tiers';
+import { getNextTier, getTierFromScore, CURRICULUM, type Tier } from '@/lib/tiers';
 import { saveRoundState, loadLevelState, saveLevelState, incrementLevel, type LevelState } from '@/lib/trainingUtils';
 
 type Target = { goldToken: string; imageDataUrl: string; label?: string; tier?: Tier };
@@ -331,9 +331,33 @@ export default function TrainingMode() {
 	return (
 		<div className="max-w-5xl mx-auto relative">
 			{showLevelToast ? (
-				<div className="fixed top-4 left-1/2 -translate-x-1/2 z-30 bg-green-600 text-white px-4 py-2 rounded-lg shadow animate-fadeIn">
-					Level {levelState.current} Unlocked!
-				</div>
+				(() => {
+					const ORDER: Tier[] = ['easy', 'medium', 'hard', 'advanced', 'expert'];
+					const unlockedIdx = Math.max(0, ORDER.findIndex((t) => t === tier));
+					const unlockedLevel = CURRICULUM.find((l) => l.id === tier);
+					const levelNumber = unlockedIdx + 1;
+					return (
+						<div className="fixed top-4 left-1/2 -translate-x-1/2 z-30 bg-white border border-gray-200 text-gray-900 px-4 py-3 rounded-xl shadow-lg animate-slideUp w-[min(92vw,28rem)]">
+							<h3 className="font-bold text-lg">
+								{unlockedLevel?.name || `Level ${levelNumber}`} Unlocked!
+							</h3>
+							<p className="text-sm">You just learned: <strong>{unlockedLevel?.skill || 'New Skill'}</strong></p>
+							<img
+								src={`/curriculum/level-${levelNumber}.jpg`}
+								alt="example"
+								className="mt-2 rounded"
+								onError={(e) => {
+									const el = e.currentTarget as HTMLImageElement;
+									if (!el.dataset.fallback) {
+										el.dataset.fallback = '1';
+										el.src = '/curriculum/placeholder.svg';
+									}
+								}}
+							/>
+							<p className="text-xs mt-2">Aim for <strong>{unlockedLevel?.goal || '—'}</strong> consistency</p>
+						</div>
+					);
+				})()
 			) : null}
 			{isAdvancingRound ? (
 				<div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 backdrop-blur-sm animate-fadeIn">
@@ -350,6 +374,20 @@ export default function TrainingMode() {
 			) : null}
 			<div className="mb-6 animate-fadeIn">
 				<ProgressHeader tier={tier} round={training.round} roundsTotal={training.roundsTotal} isFreePlay={isFreePlay} />
+				{/* Level introduction and examples */}
+				{(() => {
+					const currentLevel = CURRICULUM.find((l) => l.id === tier);
+					return currentLevel ? (
+						<div className="text-center mb-4">
+							<h2 className="text-xl font-bold text-purple-700">{currentLevel.name}</h2>
+							<p className="text-sm text-gray-600">{currentLevel.lesson}</p>
+							<div className="flex justify-center gap-4 mt-2 text-xs">
+								<span className="text-red-600">Bad: "{currentLevel.bad}"</span>
+								<span className="text-green-600">Better: "{currentLevel.good}"</span>
+							</div>
+						</div>
+					) : null;
+				})()}
 				{isFreePlay ? (
 					<div className="mt-2">
 						<div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">

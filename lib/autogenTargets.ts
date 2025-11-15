@@ -12,7 +12,10 @@ export function getGenerationPrompt(tier: string): string {
 			// 'cyan rectangle',
 		];
 		const shape = shapes[Math.floor(Math.random() * shapes.length)];
-		return shape;
+		return `flat 2D ${shape} centered on white background, vector style, no shadows, no texture`;
+	}
+	if (tier === 'medium') {
+		return 'small yellow cube robot, shiny metal, soft overhead lighting, glowing blue lights, plain gray background';
 	}
 	const easy = [
 		'green triangle on white background',

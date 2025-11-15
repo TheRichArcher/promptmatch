@@ -1,4 +1,4 @@
-import type { Tier } from '@/lib/tiers';
+import { CURRICULUM, type Tier } from '@/lib/tiers';
 
 type TargetMetadata = { label?: string; goldPrompt?: string; tier?: Tier };
 
@@ -8,6 +8,16 @@ export function generateFeedback(
 	score: number,
 	opts?: { tier?: Tier },
 ): { note: string; tip: string } {
+	// LEVEL-SPECIFIC TIPS (curriculum-driven)
+	if (opts?.tier) {
+		const level = CURRICULUM.find((l) => l.id === opts.tier);
+		if (level) {
+			return {
+				note: `Try: "${level.good}"`,
+				tip: level.lesson,
+			};
+		}
+	}
 	// Always show gold prompt for Easy tier
 	if (typeof target === 'object' && target?.tier === 'easy') {
 		const label = String(target.label || '').trim();
