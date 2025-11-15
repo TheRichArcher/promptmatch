@@ -237,6 +237,11 @@ export default function TrainingMode() {
 			const targetDown = await downscaleImage(currentTarget.imageDataUrl, 1024, 0.85);
 			const scoreResp = await postJson('/api/score', {
 					prompt,
+					target: {
+						label: currentTarget?.label ?? '',
+						url: currentTarget.imageDataUrl,
+						tier,
+					},
 					targetToken: currentTarget.goldToken,
 					targetImage: targetDown,
 					generatedImage: genImage,

@@ -15,14 +15,26 @@ export async function POST(req: NextRequest) {
 		const body = await req.json();
 		const prompt = String(body?.prompt ?? '');
 		let targetDescription = String(body?.targetDescription ?? '');
-			const targetMeta = (body?.targetMeta && typeof body.targetMeta === 'object') ? (body.targetMeta as { label?: string; tier?: Tier; goldPrompt?: string }) : undefined;
+		const targetMeta = (body?.targetMeta && typeof body.targetMeta === 'object')
+			? (body.targetMeta as { label?: string; tier?: Tier; goldPrompt?: string })
+			: undefined;
+		const targetObj = (body?.target && typeof body.target === 'object')
+			? (body.target as { label?: string; url?: string; tier?: Tier })
+			: undefined;
 		const targetToken = typeof body?.targetToken === 'string' ? (body.targetToken as string) : '';
 		const targetImage = typeof body?.targetImage === 'string' ? (body.targetImage as string) : '';
 		const generatedImage = typeof body?.generatedImage === 'string' ? (body.generatedImage as string) : '';
 		const tier: Tier | undefined = (body?.tier as Tier) || undefined;
 
-		if (!prompt || (!targetDescription && !targetToken)) {
+		// Validate presence of target reference (either token/description or explicit target payload)
+		if (!prompt || (!targetDescription && !targetToken && !targetObj)) {
 			return NextResponse.json({ error: 'Missing prompt or target reference' }, { status: 400 });
+		}
+		// If explicit target payload provided, ensure it contains required metadata
+		if (targetObj) {
+			if (!targetObj.label || !targetObj.url) {
+				return NextResponse.json({ error: 'Missing target data' }, { status: 400 });
+			}
 		}
 		// Prefer server-side unsealing if token provided
 		if (!targetDescription && targetToken) {
@@ -37,6 +49,17 @@ export async function POST(req: NextRequest) {
 		let similarity01: number | null = null;
 		let scoringMode: 'image-embedding' | 'jaccard-fallback' | null = null;
 		let errorMessage: string | null = null;
+
+		// Build target metadata to pass to feedback engine
+		const feedbackTarget = (() => {
+			if (targetObj?.label) {
+				return { label: String(targetObj.label), url: String(targetObj.url || ''), tier: (targetObj.tier ?? tier) as Tier | undefined };
+			}
+			if (targetMeta?.label) {
+				return { label: String(targetMeta.label), url: String(targetImage || ''), tier: (targetMeta.tier ?? tier) as Tier | undefined };
+			}
+			return { label: String(targetDescription || ''), url: String(targetImage || ''), tier: tier as Tier | undefined };
+		})();
 
 		// Server-side size validation (<= 1.5 MB each)
 		if (targetImage) {
@@ -78,7 +101,13 @@ export async function POST(req: NextRequest) {
 						aiScore = 95;
 					}
 				}
-				const feedback = generateFeedback(targetMeta ?? targetDescription, prompt, aiScore, { tier });
+				const feedback = generateFeedback(prompt, feedbackTarget);
+				try {
+					// eslint-disable-next-line no-console
+					console.log('FEEDBACK TARGET:', feedbackTarget.label);
+					// eslint-disable-next-line no-console
+					console.log('FEEDBACK OUTPUT:', feedback.note);
+				} catch {}
 				return NextResponse.json(
 					{
 						aiScore,
@@ -104,7 +133,13 @@ export async function POST(req: NextRequest) {
 					aiScore = 95;
 				}
 			}
-			const feedback = generateFeedback(targetMeta ?? targetDescription, prompt, aiScore, { tier });
+			const feedback = generateFeedback(prompt, feedbackTarget);
+			try {
+				// eslint-disable-next-line no-console
+				console.log('FEEDBACK TARGET:', feedbackTarget.label);
+				// eslint-disable-next-line no-console
+				console.log('FEEDBACK OUTPUT:', feedback.note);
+			} catch {}
 			return NextResponse.json(
 				{
 					aiScore,
@@ -134,7 +169,13 @@ export async function POST(req: NextRequest) {
 				aiScore = 95;
 			}
 		}
-		const feedback = generateFeedback(targetMeta ?? targetDescription, prompt, aiScore, { tier });
+		const feedback = generateFeedback(prompt, feedbackTarget);
+		try {
+			// eslint-disable-next-line no-console
+			console.log('FEEDBACK TARGET:', feedbackTarget.label);
+			// eslint-disable-next-line no-console
+			console.log('FEEDBACK OUTPUT:', feedback.note);
+		} catch {}
 
 		return NextResponse.json(
 			{
