@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import TrainingSummary from '@/components/TrainingSummary';
 import ProgressHeader from '@/components/ProgressHeader';
-import { getNextTier, getTierFromScore, CURRICULUM, type Tier } from '@/lib/tiers';
+import { getNextTier, getTierFromScore, getTierLabel, CURRICULUM, type Tier } from '@/lib/tiers';
 import { saveRoundState, loadLevelState, saveLevelState, incrementLevel, type LevelState } from '@/lib/trainingUtils';
 
 type Target = { goldToken: string; imageDataUrl: string; label?: string; tier?: Tier };
@@ -39,11 +39,32 @@ export default function TrainingMode() {
 	const [lastNote, setLastNote] = useState<string>('');
 	const [lastTip, setLastTip] = useState<string>('');
 	const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+	// Users may replay any previously unlocked tier.
+	// Users may NOT advance to a tier they haven't unlocked.
+	// Highest unlocked tier still loads by default.
+	const TIER_ORDER: Tier[] = ['easy', 'medium', 'hard', 'advanced', 'expert'];
+	const FORCE_TIER_KEY = 'forceTier';
 	const [tier, setTier] = useState<Tier>(() => {
-		const ORDER: Tier[] = ['easy', 'medium', 'hard', 'advanced', 'expert'];
 		const saved = loadLevelState(5);
-		const idx = Math.min(Math.max(1, Number(saved.current) || 1), ORDER.length) - 1;
-		return ORDER[idx];
+		const unlockedIdx = Math.min(Math.max(1, Number(saved.current) || 1), TIER_ORDER.length) - 1;
+		const highestUnlocked = TIER_ORDER[unlockedIdx];
+		let forced: Tier | null = null;
+		if (typeof window !== 'undefined') {
+			try {
+				const raw = window.localStorage.getItem(FORCE_TIER_KEY);
+				if (raw && (TIER_ORDER as string[]).includes(raw)) {
+					forced = raw as Tier;
+				}
+			} catch {}
+		}
+		if (forced) {
+			const forcedIdx = TIER_ORDER.indexOf(forced);
+			// Ignore attempts to force a tier beyond what is unlocked
+			if (forcedIdx <= unlockedIdx) {
+				return forced;
+			}
+		}
+		return highestUnlocked;
 	});
 	const [errorMsg, setErrorMsg] = useState<string>('');
 	const [tierNotice, setTierNotice] = useState<string>('');
@@ -55,6 +76,27 @@ export default function TrainingMode() {
 	useEffect(() => {
 		initializingRef.current = initializing;
 	}, [initializing]);
+
+	function getUnlockedRank(): number {
+		// levelState.current is 1-based; map to 0-based index into TIER_ORDER
+		return Math.min(TIER_ORDER.length - 1, Math.max(0, (levelState?.current || 1) - 1));
+	}
+	function requestTierChange(requested: Tier) {
+		const requestedRank = TIER_ORDER.indexOf(requested);
+		const unlockedRank = getUnlockedRank();
+		if (requestedRank > unlockedRank) {
+			// Prevent skipping ahead
+			setErrorMsg('Tier not unlocked yet');
+			return;
+		}
+		try {
+			window.localStorage.setItem(FORCE_TIER_KEY, requested);
+		} catch {}
+		// Switching tier resets state via loadSet effect below
+		setIsFreePlay(false);
+		setErrorMsg('');
+		setTier(requested);
+	}
 
 	// Downscale utility to keep images < ~1.5MB for scoring API
 	function downscaleImage(dataUrl: string, maxDim = 1024, quality = 0.85): Promise<string> {
@@ -332,8 +374,7 @@ export default function TrainingMode() {
 		<div className="max-w-5xl mx-auto relative">
 			{showLevelToast ? (
 				(() => {
-					const ORDER: Tier[] = ['easy', 'medium', 'hard', 'advanced', 'expert'];
-					const unlockedIdx = Math.max(0, ORDER.findIndex((t) => t === tier));
+					const unlockedIdx = Math.max(0, TIER_ORDER.findIndex((t) => t === tier));
 					const unlockedLevel = CURRICULUM.find((l) => l.id === tier);
 					const levelNumber = unlockedIdx + 1;
 					return (
@@ -374,6 +415,26 @@ export default function TrainingMode() {
 			) : null}
 			<div className="mb-6 animate-fadeIn">
 				<ProgressHeader tier={tier} round={training.round} roundsTotal={training.roundsTotal} isFreePlay={isFreePlay} />
+				{/* Choose Level control (only unlocked tiers are enabled) */}
+				<div className="mt-3 flex items-center gap-3">
+					<label className="text-sm font-medium text-gray-700">Choose Level</label>
+					<select
+						className="text-sm border rounded-md px-2 py-1 bg-white"
+						value={tier}
+						onChange={(e) => requestTierChange(e.target.value as Tier)}
+					>
+						{TIER_ORDER.map((t) => {
+							const rank = TIER_ORDER.indexOf(t);
+							const disabled = rank > getUnlockedRank();
+							return (
+								<option key={t} value={t} disabled={disabled}>
+									{getTierLabel(t)}
+								</option>
+							);
+						})}
+					</select>
+					<span className="text-xs text-gray-500">(Locked levels are disabled)</span>
+				</div>
 				{/* Level introduction and examples */}
 				{(() => {
 					const currentLevel = CURRICULUM.find((l) => l.id === tier);
