@@ -4,6 +4,7 @@ import type { Tier } from '@/lib/tiers';
 import { clearUsedImages, fileToDataUrl, getPoolForTier, pickUniqueImagesWithFallback } from '@/lib/tieredTargets';
 import { sealGoldPrompt } from '@/lib/secureText';
 import { getGenerationPrompt } from '@/lib/autogenTargets';
+import { EASY_SEEDS } from '@/lib/tieredTargets';
 
 export const runtime = 'nodejs';
 
@@ -51,6 +52,24 @@ export async function POST(req: NextRequest) {
 			clearUsedImages();
 		}
 
+		// HARD OVERRIDE: Basics (easy) must be flat 2D shapes only.
+		// We bypass the image pool entirely and return deterministic SVG targets.
+		if (tier === 'easy' && !stream) {
+			const seeds = EASY_SEEDS.slice(0, 5);
+			const targets = seeds.map((seed) => {
+				const svg = buildShapeSvg(seed);
+				const imageDataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+				const label = cleanGoldPrompt(seed);
+				return {
+					goldToken: sealGoldPrompt(label),
+					imageDataUrl,
+					label,
+					tier: 'easy' as const,
+				};
+			});
+			return NextResponse.json({ targets, tier }, { status: 200 });
+		}
+
 		// Optional streaming mode for progressive status updates (helps avoid 502 timeouts)
 		if (stream) {
 			const stream = new ReadableStream({
@@ -58,6 +77,24 @@ export async function POST(req: NextRequest) {
 					const enqueue = (evt: any) => controller.enqueue(new TextEncoder().encode(sseEncode(evt)));
 					try {
 						enqueue({ status: 'starting', tier });
+						// HARD OVERRIDE (stream): Basics (easy) returns deterministic SVG shapes
+						if (tier === 'easy') {
+							const seeds = EASY_SEEDS.slice(0, 5);
+							const targets = seeds.map((seed) => {
+								const svg = buildShapeSvg(seed);
+								const imageDataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+								const label = cleanGoldPrompt(seed);
+								return {
+									goldToken: sealGoldPrompt(label),
+									imageDataUrl,
+									label,
+									tier: 'easy' as const,
+								};
+							});
+							enqueue({ status: 'done', targets, tier });
+							controller.close();
+							return;
+						}
 						// Prefer tiered image pools if available
 						const projectRoot = process.cwd();
 						enqueue({ status: 'checking-pool' });
@@ -180,6 +217,84 @@ export async function POST(req: NextRequest) {
 	} catch (err: any) {
 		return NextResponse.json({ error: err?.message ?? 'Unknown error' }, { status: 500 });
 	}
+}
+
+// Build a simple centered 2D SVG shape for a seed like "red circle"
+function buildShapeSvg(seed: string): string {
+	const [rawColor, rawShape] = String(seed || '').toLowerCase().split(/\s+/);
+	const color = mapColor(rawColor);
+	const shape = rawShape || 'circle';
+	const size = 512;
+	const center = size / 2;
+	const shapeSize = Math.round(size * 0.28);
+	const stroke = 'none';
+	const bg = '#ffffff';
+	let shapeEl = '';
+	switch (shape) {
+		case 'circle':
+			shapeEl = `<circle cx="${center}" cy="${center}" r="${shapeSize}" fill="${color}" stroke="${stroke}" />`;
+			break;
+		case 'square':
+			shapeEl = `<rect x="${center - shapeSize}" y="${center - shapeSize}" width="${shapeSize * 2}" height="${shapeSize * 2}" fill="${color}" stroke="${stroke}" />`;
+			break;
+		case 'triangle':
+			const h = Math.round(Math.sqrt(3) * shapeSize);
+			shapeEl = `<polygon points="${center},${center - Math.round(h * 0.66)} ${center - shapeSize},${center + Math.round(h * 0.34)} ${center + shapeSize},${center + Math.round(h * 0.34)}" fill="${color}" stroke="${stroke}" />`;
+			break;
+		case 'star':
+			shapeEl = buildStar(center, center, shapeSize, Math.round(shapeSize * 0.45), 5, color);
+			break;
+		case 'diamond':
+			shapeEl = `<polygon points="${center},${center - shapeSize} ${center + shapeSize},${center} ${center},${center + shapeSize} ${center - shapeSize},${center}" fill="${color}" stroke="${stroke}" />`;
+			break;
+		case 'oval':
+			shapeEl = `<ellipse cx="${center}" cy="${center}" rx="${Math.round(shapeSize * 1.3)}" ry="${shapeSize}" fill="${color}" stroke="${stroke}" />`;
+			break;
+		case 'hexagon':
+			const r = shapeSize;
+			const points = Array.from({ length: 6 }, (_, i) => {
+				const a = (Math.PI / 3) * i;
+				const x = center + r * Math.cos(a);
+				const y = center + r * Math.sin(a);
+				return `${Math.round(x)},${Math.round(y)}`;
+			}).join(' ');
+			shapeEl = `<polygon points="${points}" fill="${color}" stroke="${stroke}" />`;
+			break;
+		default:
+			shapeEl = `<circle cx="${center}" cy="${center}" r="${shapeSize}" fill="${color}" stroke="${stroke}" />`;
+	}
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  <rect width="100%" height="100%" fill="${bg}"/>
+  ${shapeEl}
+</svg>`;
+}
+
+function mapColor(name?: string): string {
+	switch (name) {
+		case 'red': return '#e11d48';
+		case 'blue': return '#2563eb';
+		case 'green': return '#16a34a';
+		case 'yellow': return '#eab308';
+		case 'orange': return '#f97316';
+		case 'pink': return '#ec4899';
+		case 'black': return '#111827';
+		case 'cyan': return '#06b6d4';
+		default: return '#6b7280';
+	}
+}
+
+function buildStar(cx: number, cy: number, outer: number, inner: number, points: number, fill: string): string {
+	let d = '';
+	for (let i = 0; i < points * 2; i++) {
+		const r = i % 2 === 0 ? outer : inner;
+		const a = (Math.PI / points) * i - Math.PI / 2;
+		const x = cx + r * Math.cos(a);
+		const y = cy + r * Math.sin(a);
+		d += `${i === 0 ? 'M' : 'L'} ${Math.round(x)} ${Math.round(y)} `;
+	}
+	d += 'Z';
+	return `<path d="${d}" fill="${fill}" />`;
 }
 
 
