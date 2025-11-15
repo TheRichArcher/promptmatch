@@ -23,17 +23,15 @@ export function getNextTier(current: Tier): Tier {
 }
 
 export function getTierLabel(tier: Tier): string {
+	const entry = CURRICULUM.find((l) => l.id === tier);
+	if (entry?.name) return entry.name;
+	// Fallback to legacy labels if curriculum not found
 	switch (tier) {
-		case 'easy':
-			return 'Easy';
-		case 'medium':
-			return 'Medium';
-		case 'hard':
-			return 'Hard';
-		case 'advanced':
-			return 'Advanced';
-		case 'expert':
-			return 'Expert';
+		case 'easy': return 'Easy';
+		case 'medium': return 'Medium';
+		case 'hard': return 'Hard';
+		case 'advanced': return 'Advanced';
+		case 'expert': return 'Expert';
 	}
 }
 
