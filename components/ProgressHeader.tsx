@@ -35,9 +35,9 @@ export default function ProgressHeader({ tier, round, roundsTotal, isFreePlay = 
 					style={{ width: `${globalProgress}%` }}
 				/>
 			</div>
-			<p className="text-xs text-center text-gray-500">
-				Level {tierIndex + 1} → Level {totalLevels}
-			</p>
+			<div className="text-sm font-bold text-purple-700 text-center">
+				{currentLevel?.name || `Level ${tierIndex + 1}`} → Precision
+			</div>
 		</div>
 	);
 }

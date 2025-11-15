@@ -384,10 +384,8 @@ export default function TrainingMode() {
 					const levelNumber = unlockedIdx + 1;
 					return (
 						<div className="fixed top-4 left-1/2 -translate-x-1/2 z-30 bg-white border border-gray-200 text-gray-900 px-4 py-3 rounded-xl shadow-lg animate-slideUp w-[min(92vw,28rem)]">
-							<h3 className="font-bold text-lg">
-								{unlockedLevel?.name || `Level ${levelNumber}`} Unlocked!
-							</h3>
-							<p className="text-sm">You just learned: <strong>{unlockedLevel?.skill || 'New Skill'}</strong></p>
+							<h3 className="font-bold text-lg">🔓 {unlockedLevel?.name || `Level ${levelNumber}`} Unlocked!</h3>
+							<p className="text-sm">Now learn: <strong>{unlockedLevel?.skill || 'New Skill'}</strong></p>
 							<img
 								src={`/curriculum/level-${levelNumber}.jpg`}
 								alt="example"
@@ -446,11 +444,7 @@ export default function TrainingMode() {
 					return currentLevel ? (
 						<div className="text-center mb-4">
 							<h2 className="text-xl font-bold text-purple-700">{currentLevel.name}</h2>
-							<p className="text-sm text-gray-600">{currentLevel.lesson}</p>
-							<div className="flex justify-center gap-4 mt-2 text-xs">
-								<span className="text-red-600">Bad: "{currentLevel.bad}"</span>
-								<span className="text-green-600">Better: "{currentLevel.good}"</span>
-							</div>
+							<p className="text-sm text-gray-600">Now learn: <strong>{currentLevel.skill}</strong></p>
 						</div>
 					) : null;
 				})()}
