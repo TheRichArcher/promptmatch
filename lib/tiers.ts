@@ -1,7 +1,7 @@
 export type Tier = 'easy' | 'medium' | 'hard' | 'advanced' | 'expert';
 
 export const CURRICULUM = [
-	{ id: 'easy',     name: 'Basics',    skill: 'Name + Color + Shape',         goal: '95+' },
+	{ id: 'easy',     name: 'Basics',    skill: 'Color + Shape + Name',         goal: '95+' },
 	{ id: 'medium',   name: 'Details',   skill: 'Lighting + Texture',            goal: '90+' },
 	{ id: 'hard',     name: 'Scenes',    skill: 'Environment + Composition',     goal: '85+' },
 	{ id: 'advanced', name: 'Style',     skill: 'Camera + Art Direction',        goal: '80+' },
