@@ -226,7 +226,7 @@ export default function TrainingMode() {
 		setErrorMsg('');
 		try {
 			// Generate user image from prompt
-			const genResp = await postJson('/api/generate', { prompt }, 1);
+			const genResp = await postJson('/api/generate', { prompt, tier }, 1);
 			if (!genResp.ok) throw new Error(genResp.json?.error || 'Failed to generate image');
 			const genJson = genResp.json;
 			const genImageRaw: string | null = genJson?.image ?? genJson?.imageDataUrl ?? null;

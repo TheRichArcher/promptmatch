@@ -56,13 +56,19 @@ export async function POST(req: NextRequest) {
 	try {
 		const body = await req.json();
 		const prompt = String(body?.prompt ?? '');
+		const tier = String(body?.tier ?? '').toLowerCase();
+		// For Easy tier, lightly constrain to a flat 2D icon to avoid photoreal outputs
+		const effectivePrompt =
+			tier === 'easy' && prompt
+				? `simple 2D ${prompt} icon on white background`
+				: prompt;
 		if (!prompt) {
 			return NextResponse.json({ error: 'Missing prompt' }, { status: 400 });
 		}
 
 		// If no API key, return a deterministic placeholder so flows still work in demo/prod without keys
 		if (!process.env.GOOGLE_API_KEY) {
-			const placeholder = buildPlaceholderSvg(prompt);
+			const placeholder = buildPlaceholderSvg(effectivePrompt);
 			return NextResponse.json({ image: placeholder, imageDataUrl: placeholder, provider: 'placeholder' }, { status: 200 });
 		}
 
@@ -77,7 +83,7 @@ export async function POST(req: NextRequest) {
 				console.log('[generate] Trying model:', modelId);
 				const model = genAI.getGenerativeModel({ model: modelId as any });
 				const result = await model.generateContent({
-					contents: [{ role: 'user', parts: [{ text: prompt }] }],
+					contents: [{ role: 'user', parts: [{ text: effectivePrompt }] }],
 				} as any);
 				const response = (result as any).response ?? (await (result as any).response);
 				const candidates = (response?.candidates ?? []) as any[];
