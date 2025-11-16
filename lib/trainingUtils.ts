@@ -5,10 +5,12 @@ export function mostFrequent(arr: string[]): string {
 		.reverse()[0];
 }
 
+import { getNextTier, getTierFromScore, getTierLabel } from '@/lib/tiers';
+
 export function pickNextLevel(score: number): string {
-	if (score < 60) return 'Beginner Pack';
-	if (score < 80) return 'Intermediate Pack';
-	return 'Advanced Challenge';
+	const current = getTierFromScore(score);
+	const next = getNextTier(current);
+	return getTierLabel(next);
 }
 
 // Level progression (persists across sessions)

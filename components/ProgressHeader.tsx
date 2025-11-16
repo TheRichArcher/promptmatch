@@ -14,6 +14,8 @@ export default function ProgressHeader({ tier, round, roundsTotal, isFreePlay = 
 	const ORDER: Tier[] = ['easy', 'medium', 'hard', 'advanced', 'expert'];
 	const tierIndex = Math.max(0, ORDER.findIndex((t) => t === tier));
 	const currentLevel = CURRICULUM.find((l) => l.id === tier);
+	const nextTierId = ORDER[tierIndex + 1];
+	const nextLevel = nextTierId ? CURRICULUM.find((l) => l.id === nextTierId) : undefined;
 	// Progress should reflect the current round within this level, not global across tiers
 	const clampedTotal = Math.max(1, roundsTotal || 5);
 	const clampedRound = Math.min(Math.max(1, round), clampedTotal);
@@ -38,7 +40,7 @@ export default function ProgressHeader({ tier, round, roundsTotal, isFreePlay = 
 				/>
 			</div>
 			<div className="text-sm font-bold text-purple-700 text-center">
-				{currentLevel?.name || `Level ${tierIndex + 1}`} → Precision
+				{currentLevel?.name || `Level ${tierIndex + 1}`} → {nextLevel ? nextLevel.name : 'Mastered'}
 			</div>
 		</div>
 	);

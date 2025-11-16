@@ -5,7 +5,7 @@ import Confetti from 'react-confetti';
 import { mostFrequent } from '@/lib/trainingUtils';
 import { saveProgress } from '@/lib/progress';
 import { useRouter } from 'next/navigation';
-import { getNextTier, getTierFromScore } from '@/lib/tiers';
+import { getNextTier, getTierFromScore, getTierLabel } from '@/lib/tiers';
 import LoadingOverlay from './LoadingOverlay';
 
 type Props = {
@@ -51,7 +51,8 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 
 	const currentTier = getTierFromScore(averageScore);
 	const nextTier = getNextTier(currentTier);
-	const tierLabel = currentTier.charAt(0).toUpperCase() + currentTier.slice(1);
+	const tierLabel = getTierLabel(currentTier);
+	const nextTierLabel = getTierLabel(nextTier);
 
 	useEffect(() => {
 		const timer = setTimeout(() => setShowConfetti(false), 5000);
@@ -120,7 +121,7 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 			{isLoadingNext ? <Confetti recycle={false} /> : null}
 			{showToast ? (
 				<div className="fixed bottom-4 right-4 bg-green-600 text-white p-3 rounded-lg shadow-lg animate-fadeIn">
-					{nextTier} unlocked!
+					{nextTierLabel} unlocked!
 				</div>
 			) : null}
 			{showConfetti && !isLoadingNext ? (
@@ -203,7 +204,7 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 						className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold hover:scale-105 transition transform shadow-lg"
 					>
 						New Training Set
-						<span className="block text-xs opacity-90">Practice {currentTier} again</span>
+						<span className="block text-xs opacity-90">Practice {tierLabel} again</span>
 					</button>
 					<button
 						onClick={handleNextTier}
@@ -219,13 +220,13 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 							</>
 						) : (
 							<>
-								Next Level – {nextTier.charAt(0).toUpperCase() + nextTier.slice(1)}
+								Next Level – {nextTierLabel}
 							</>
 						)}
 					</button>
 				</div>
 
-				<p className="text-sm text-gray-500 mt-6">Next up: <strong className="text-indigo-600">{nextTier}</strong> – ready to level up?</p>
+				<p className="text-sm text-gray-500 mt-6">Next up: <strong className="text-indigo-600">{nextTierLabel}</strong> – ready to level up?</p>
 				<p className="text-center text-sm text-gray-500 mt-2">
 					<a href="/progress" className="underline">View full progress →</a>
 				</p>

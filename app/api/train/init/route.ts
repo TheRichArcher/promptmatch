@@ -151,11 +151,11 @@ export async function POST(req: NextRequest) {
 							});
 							let notice: string | undefined = undefined;
 							if (tier === 'expert' && usedTier !== tier) {
-								notice = "Expert tier coming soon! You’ve mastered all current challenges.";
+								notice = "Precision level coming soon! You’ve mastered all current challenges.";
 							} else if (tier === 'advanced' && usedTier !== tier) {
-								notice = 'Using a lower-tier pool while we build Advanced.';
+								notice = 'Using a lower-tier pool while we build Style.';
 							} else if (tier === 'advanced' && initialAdvancedPoolCount === 0 && usedTier === 'advanced') {
-								notice = 'Generating new Advanced challenge set…';
+								notice = 'Generating new Style challenge set…';
 							}
 							enqueue({ status: 'done', targets, tier, notice });
 							controller.close();
@@ -219,11 +219,11 @@ export async function POST(req: NextRequest) {
 			let notice: string | undefined = undefined;
 			// If we fell back from the requested tier, let the user know
 			if (tier === 'expert' && usedTier !== tier) {
-				notice = "Expert tier coming soon! You’ve mastered all current challenges.";
+				notice = "Precision level coming soon! You’ve mastered all current challenges.";
 			} else if (tier === 'advanced' && usedTier !== tier) {
-				notice = 'Using a lower-tier pool while we build Advanced.';
+				notice = 'Using a lower-tier pool while we build Style.';
 			} else if (tier === 'advanced' && initialAdvancedPoolCount === 0 && usedTier === 'advanced') {
-				notice = 'Generating new Advanced challenge set…';
+				notice = 'Generating new Style challenge set…';
 			}
 			return NextResponse.json({ targets, tier, notice }, { status: 200 });
 		}
