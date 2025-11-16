@@ -13,6 +13,32 @@ export function generateFeedback(prompt: string, target: TargetMetadata): { note
 		// eslint-disable-next-line no-console
 		console.log('FEEDBACK TARGET:', label);
 	} catch {}
+	// Medium-tier: produce a short, humanized suggestion emphasizing object + texture + light
+	const humanizeMedium = (full: string): string => {
+		let s = String(full || '').trim();
+		if (!s) return s;
+		// Split on commas; drop background/position/environment/style qualifiers
+		const parts = s.split(',').map((p) => p.trim()).filter(Boolean);
+		const kept = parts.filter((p) => {
+			const lower = p.toLowerCase();
+			if (/\b(background|center|centred|centered|reflection|reflections|environment|style)\b/.test(lower)) return false;
+			if (/^no\s+/.test(lower)) return false;
+			return true;
+		});
+		// Keep up to object, texture/surface, and light
+		let candidate = kept.slice(0, 3).join(', ');
+		// Prefer "surface" over "texture" wording for natural tone
+		candidate = candidate.replace(/\btexture\b/gi, 'surface');
+		// Enforce <10 words; if too long, drop to first two segments or trim to 9 words
+		const words = candidate.split(/\s+/).filter(Boolean);
+		if (words.length >= 10) {
+			const two = kept.slice(0, 2).join(', ').replace(/\btexture\b/gi, 'surface');
+			const twoWords = two.split(/\s+/).filter(Boolean);
+			if (two && twoWords.length < 10) return two;
+			return words.slice(0, 9).join(' ');
+		}
+		return candidate;
+	};
 	if (tier === 'easy') {
 		const result = {
 			note: 'Great! Keep naming simple shapes with colors.',
@@ -25,8 +51,10 @@ export function generateFeedback(prompt: string, target: TargetMetadata): { note
 		return result;
 	}
 	if (tier === 'medium') {
+		const gold = String(target?.goldPrompt || label).trim();
+		const note = humanizeMedium(gold || label);
 		const result = {
-			note: `Try: "${target?.goldPrompt || label}"`,
+			note,
 			tip: 'Add texture (shiny, fuzzy) + light (soft, glowing)',
 		};
 		try {

@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
 					const hasTexture = /shiny|matte|fuzzy|rough|smooth|glossy/.test(lower);
 					const hasLight = /shadow|light|glowing|backlit|warm|cool/.test(lower);
 					const wordCount = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
-					if (hasTexture && hasLight && wordCount <= 8) {
+					if (hasTexture && hasLight && wordCount < 10) {
 						aiScore = Math.max(aiScore, 90);
 					}
 				}
@@ -242,7 +242,7 @@ export async function POST(req: NextRequest) {
 				const hasTexture = /shiny|matte|fuzzy|rough|smooth|glossy/.test(lower);
 				const hasLight = /shadow|light|glowing|backlit|warm|cool/.test(lower);
 				const wordCount = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
-				if (hasTexture && hasLight && wordCount <= 8) {
+				if (hasTexture && hasLight && wordCount < 10) {
 					aiScore = Math.max(aiScore, 90);
 				}
 			}
@@ -327,7 +327,7 @@ export async function POST(req: NextRequest) {
 			const hasTexture = /shiny|matte|fuzzy|rough|smooth|glossy/.test(lower);
 			const hasLight = /shadow|light|glowing|backlit|warm|cool/.test(lower);
 			const wordCount = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
-			if (hasTexture && hasLight && wordCount <= 8) {
+			if (hasTexture && hasLight && wordCount < 10) {
 				aiScore = Math.max(aiScore, 90);
 			}
 		}
