@@ -466,17 +466,13 @@ export default function TrainingMode() {
 						value={tier}
 						onChange={(e) => requestTierChange(e.target.value as Tier)}
 					>
-						{TIER_ORDER.map((t) => {
-							const rank = TIER_ORDER.indexOf(t);
-							const disabled = rank > getUnlockedRank();
-							return (
-								<option key={t} value={t} disabled={disabled}>
-									{getTierLabel(t)}
-								</option>
-							);
-						})}
+						{TIER_ORDER.filter((t) => TIER_ORDER.indexOf(t) <= getUnlockedRank()).map((t) => (
+							<option key={t} value={t}>
+								{getTierLabel(t)}
+							</option>
+						))}
 					</select>
-					<span className="text-xs text-gray-500">(Locked levels are disabled)</span>
+					<span className="text-xs text-gray-500">(Only current and completed levels are shown)</span>
 				</div>
 				{/* Level introduction and examples */}
 				{(() => {
