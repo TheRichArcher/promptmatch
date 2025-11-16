@@ -347,6 +347,10 @@ export default function TrainingMode() {
 	}
 
 	if (initializing && training.round === 1) {
+		// During initialization of a new level, prefer the Level Briefing overlay if active.
+		if (showBriefing && briefingLevel) {
+			return <LevelBriefingOverlay level={briefingLevel} />;
+		}
 		return (
 			<div className="fixed inset-0 z-40 flex items-center justify-center bg-white/80 backdrop-blur-sm">
 				<div className="flex flex-col items-center">
@@ -361,6 +365,7 @@ export default function TrainingMode() {
 	if (training.isComplete) {
 		return (
 			<>
+				{showBriefing && briefingLevel ? <LevelBriefingOverlay level={briefingLevel} /> : null}
 				<TrainingSummary
 					scores={training.scores}
 					feedback={training.feedback}
