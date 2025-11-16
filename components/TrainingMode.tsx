@@ -349,11 +349,10 @@ export default function TrainingMode() {
 						if (isLevelLoading) return;
 						setIsLevelLoading(true);
 						try {
-							const avg = training.scores.length ? training.scores.reduce((a, b) => a + b, 0) / training.scores.length : 0;
-							const currentTier = getTierFromScore(avg);
-							const next = getNextTier(currentTier);
-							// Free Play Mode after Expert
-							if (currentTier === 'expert') {
+							// Advance strictly based on the current tier order, not the score-derived tier.
+							const next = getNextTier(tier);
+							// Free Play Mode after Precision
+							if (tier === 'expert') {
 								console.info('🎮 Switching to Free Play Mode');
 								setIsFreePlay(true);
 							} else {
