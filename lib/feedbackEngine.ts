@@ -1,6 +1,6 @@
 import type { Tier } from '@/lib/tiers';
 
-export type TargetMetadata = { label: string; url?: string; tier?: Tier };
+export type TargetMetadata = { label: string; url?: string; tier?: Tier; goldPrompt?: string };
 
 export function generateFeedback(prompt: string, target: TargetMetadata): { note: string; tip: string } {
 	const label = String(target?.label || '').trim();
@@ -26,8 +26,8 @@ export function generateFeedback(prompt: string, target: TargetMetadata): { note
 	}
 	if (tier === 'medium') {
 		const result = {
-			note: `Try: "${label} with lighting"`,
-			tip: 'Add texture and light',
+			note: `Try: "${target?.goldPrompt || label}"`,
+			tip: 'Add texture (shiny, fuzzy) + light (soft, glowing)',
 		};
 		try {
 			// eslint-disable-next-line no-console

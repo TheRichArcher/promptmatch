@@ -15,7 +15,19 @@ export function getGenerationPrompt(tier: string): string {
 		return `simple 2D ${shape} icon on white background`;
 	}
 	if (tier === 'medium') {
-		return 'small yellow cube robot, shiny metal, soft overhead lighting, glowing blue lights, plain gray background';
+		const objects = [
+			'yellow rubber duck',
+			'red apple',
+			'blue plastic cup',
+			'green glass bottle',
+			'silver metal sphere',
+		];
+		const textures = ['shiny', 'matte', 'fuzzy', 'smooth', 'rough'];
+		const lighting = ['soft shadows', 'backlit', 'glowing edges', 'warm light', 'cool light'];
+		const obj = objects[Math.floor(Math.random() * objects.length)];
+		const tex = textures[Math.floor(Math.random() * textures.length)];
+		const light = lighting[Math.floor(Math.random() * lighting.length)];
+		return `${obj}, ${tex} surface, ${light}, plain white background, centered, no reflections, no environment`;
 	}
 	const easy = [
 		'green triangle on white background',
@@ -24,9 +36,11 @@ export function getGenerationPrompt(tier: string): string {
 		'yellow star on white surface',
 	];
 	const medium = [
-		'yellow rubber duck on white sink',
-		'red apple on wooden table',
-		'silver laptop on desk with window light',
+		'yellow rubber duck, fuzzy texture, soft shadows, plain white background, centered, no reflections, no environment',
+		'red apple, shiny surface, cool light, plain white background, centered, no reflections, no environment',
+		'blue plastic cup, matte surface, warm light, plain white background, centered, no reflections, no environment',
+		'green glass bottle, smooth surface, backlit, plain white background, centered, no reflections, no environment',
+		'silver metal sphere, glossy shiny surface, glowing edges, plain white background, centered, no reflections, no environment',
 	];
 	const hard = [
 		'red car on busy city street at sunset',

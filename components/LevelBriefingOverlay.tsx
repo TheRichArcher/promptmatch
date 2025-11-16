@@ -20,11 +20,11 @@ const BRIEFINGS: Record<
 		tip: 'Short and concrete wins here.',
 	},
 	details: {
-		title: 'Details: Add Lighting + Texture',
-		desc: 'Make it feel real',
-		focus: ['Soft shadows', 'Shiny metal', 'Glowing edges'],
-		examples: ['shiny robot', 'fuzzy blanket'],
-		tip: 'Texture = touch. Lighting = mood.',
+		title: 'Details: Add Light + Texture',
+		desc: 'One object. Plain background. Focus on how it feels and how it’s lit.',
+		focus: ['Texture: shiny, matte, fuzzy, rough', 'Light: soft shadows, backlit, glowing', 'NO tables, floors, or scenes'],
+		examples: ['shiny metal sphere', 'fuzzy yellow duck with soft light'],
+		tip: 'Describe the surface and the light — nothing else.',
 	},
 	scenes: {
 		title: 'Scenes: Build the World',

@@ -53,12 +53,27 @@ export async function POST(req: NextRequest) {
 		// Build target metadata to pass to feedback engine
 		const feedbackTarget = (() => {
 			if (targetObj?.label) {
-				return { label: String(targetObj.label), url: String(targetObj.url || ''), tier: (targetObj.tier ?? tier) as Tier | undefined };
+				return {
+					label: String(targetObj.label),
+					url: String(targetObj.url || ''),
+					tier: (targetObj.tier ?? tier) as Tier | undefined,
+					goldPrompt: String(targetDescription || ''),
+				};
 			}
 			if (targetMeta?.label) {
-				return { label: String(targetMeta.label), url: String(targetImage || ''), tier: (targetMeta.tier ?? tier) as Tier | undefined };
+				return {
+					label: String(targetMeta.label),
+					url: String(targetImage || ''),
+					tier: (targetMeta.tier ?? tier) as Tier | undefined,
+					goldPrompt: String(targetMeta?.goldPrompt || targetDescription || ''),
+				};
 			}
-			return { label: String(targetDescription || ''), url: String(targetImage || ''), tier: tier as Tier | undefined };
+			return {
+				label: String(targetDescription || ''),
+				url: String(targetImage || ''),
+				tier: tier as Tier | undefined,
+				goldPrompt: String(targetDescription || ''),
+			};
 		})();
 
 		// Server-side size validation (<= 1.5 MB each)
@@ -140,6 +155,16 @@ export async function POST(req: NextRequest) {
 					}
 					aiScore = Math.max(0, Math.min(100, Math.round(similarity01 * 100 + boost - penalty)));
 				}
+				// Medium-tier rule: reward explicit texture + light with brevity
+				if ((targetMeta?.tier ?? tier) === 'medium') {
+					const lower = String(prompt || '').toLowerCase();
+					const hasTexture = /shiny|matte|fuzzy|rough|smooth|glossy/.test(lower);
+					const hasLight = /shadow|light|glowing|backlit|warm|cool/.test(lower);
+					const wordCount = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
+					if (hasTexture && hasLight && wordCount <= 8) {
+						aiScore = Math.max(aiScore, 90);
+					}
+				}
 				const feedback = generateFeedback(prompt, feedbackTarget);
 				try {
 					// eslint-disable-next-line no-console
@@ -210,6 +235,16 @@ export async function POST(req: NextRequest) {
 				// Non-easy tiers keep heuristic bonuses
 				const bonus = heuristicPromptBonus(prompt);
 				aiScore = computeFinalScore(simJ, bonus);
+			}
+			// Medium-tier rule: reward explicit texture + light with brevity
+			if ((targetMeta?.tier ?? tier) === 'medium') {
+				const lower = String(prompt || '').toLowerCase();
+				const hasTexture = /shiny|matte|fuzzy|rough|smooth|glossy/.test(lower);
+				const hasLight = /shadow|light|glowing|backlit|warm|cool/.test(lower);
+				const wordCount = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
+				if (hasTexture && hasLight && wordCount <= 8) {
+					aiScore = Math.max(aiScore, 90);
+				}
 			}
 			const feedback = generateFeedback(prompt, feedbackTarget);
 			try {
@@ -285,6 +320,16 @@ export async function POST(req: NextRequest) {
 		} else {
 			const bonus = heuristicPromptBonus(prompt);
 			aiScore = computeFinalScore(similarity01, bonus);
+		}
+		// Medium-tier rule: reward explicit texture + light with brevity
+		if ((targetMeta?.tier ?? tier) === 'medium') {
+			const lower = String(prompt || '').toLowerCase();
+			const hasTexture = /shiny|matte|fuzzy|rough|smooth|glossy/.test(lower);
+			const hasLight = /shadow|light|glowing|backlit|warm|cool/.test(lower);
+			const wordCount = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
+			if (hasTexture && hasLight && wordCount <= 8) {
+				aiScore = Math.max(aiScore, 90);
+			}
 		}
 		const feedback = generateFeedback(prompt, feedbackTarget);
 		try {
