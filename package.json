@@ -14,6 +14,7 @@
     "@types/node": "^20.12.12",
     "@types/react": "^18.2.79",
     "@types/react-dom": "^18.2.25",
+    "framer-motion": "^11.11.17",
     "autoprefixer": "^10.4.19",
     "google-auth-library": "^9.14.2",
     "next": "^14.2.7",

@@ -5,7 +5,7 @@ import Confetti from 'react-confetti';
 import { mostFrequent } from '@/lib/trainingUtils';
 import { saveProgress } from '@/lib/progress';
 import { useRouter } from 'next/navigation';
-import { getNextTier, getTierFromScore, getTierLabel } from '@/lib/tiers';
+import { getNextTier, getTierLabel, type Tier } from '@/lib/tiers';
 import LoadingOverlay from './LoadingOverlay';
 
 type Props = {
@@ -18,9 +18,10 @@ type Props = {
 	generatedImages: (string | null)[];
 	lastSuggestion?: string;
 	lastTip?: string;
+	currentTier: Tier;
 };
 
-export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier, userPrompts, targets, generatedImages, lastSuggestion, lastTip }: Props) {
+export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier, userPrompts, targets, generatedImages, lastSuggestion, lastTip, currentTier }: Props) {
 	const [showConfetti, setShowConfetti] = useState(true);
 	const [isAdvancing, setIsAdvancing] = useState(false);
 	const [isLoadingNext, setIsLoadingNext] = useState(false);
@@ -49,7 +50,6 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 		return averageScore - (standardDeviation || 0);
 	}, [averageScore, standardDeviation]);
 
-	const currentTier = getTierFromScore(averageScore);
 	const nextTier = getNextTier(currentTier);
 	const tierLabel = getTierLabel(currentTier);
 	const nextTierLabel = getTierLabel(nextTier);

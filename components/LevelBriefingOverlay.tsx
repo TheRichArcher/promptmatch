@@ -1,0 +1,101 @@
+'use client';
+
+import { motion } from 'framer-motion';
+
+const BRIEFINGS: Record<
+	string,
+	{
+		title: string;
+		desc: string;
+		focus: string[];
+		examples: string[];
+		tip: string;
+	}
+> = {
+	basics: {
+		title: 'Basics: Describe the Thing Clearly',
+		desc: 'Simple 2D shapes · 2–3 words · 8th grade level',
+		focus: ['Name the object', 'Pick a color', 'Keep it short'],
+		examples: ['red circle', 'yellow star', 'blue square'],
+		tip: 'Short and concrete wins here.',
+	},
+	details: {
+		title: 'Details: Add Lighting + Texture',
+		desc: 'Make it feel real',
+		focus: ['Soft shadows', 'Shiny metal', 'Glowing edges'],
+		examples: ['shiny robot', 'fuzzy blanket'],
+		tip: 'Texture = touch. Lighting = mood.',
+	},
+	scenes: {
+		title: 'Scenes: Build the World',
+		desc: 'No floating objects',
+		focus: ['On a desk', 'In a forest', 'Underwater'],
+		examples: ['robot on workbench', 'apple in kitchen'],
+		tip: 'Give Nano Banana a stage.',
+	},
+	style: {
+		title: 'Style: Direct the Camera',
+		desc: 'You’re the artist',
+		focus: ['50mm lens', 'digital painting', 'cinematic'],
+		examples: ['close-up shot', 'Pixar style'],
+		tip: 'Control how it looks, not just what.',
+	},
+	precision: {
+		title: 'Precision: Engineer the Output',
+		desc: 'Full control',
+		focus: ['Negative prompts', 'Aspect ratio', 'Hierarchy'],
+		examples: ['no scratches', '--ar 16:9'],
+		tip: 'Engineers don’t guess — they compile.',
+	},
+};
+
+export default function LevelBriefingOverlay({ level }: { level: string }) {
+	const data = BRIEFINGS[level] ?? BRIEFINGS['basics'];
+
+	return (
+		<motion.div
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			className="fixed inset-0 bg-gradient-to-br from-indigo-600 to-purple-700 z-50 flex items-center justify-center p-6"
+		>
+			<div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
+				<h2 className="text-3xl font-bold text-indigo-700 mb-2">{data.title}</h2>
+				<p className="text-sm text-gray-600 mb-6">{data.desc}</p>
+
+				<div className="space-y-3 mb-6">
+					{data.focus.map((item, i) => (
+						<div key={i} className="flex items-center gap-2">
+							<div className="w-2 h-2 bg-indigo-500 rounded-full" />
+							<span className="text-gray-700">{item}</span>
+						</div>
+					))}
+				</div>
+
+				<div className="bg-gray-50 p-4 rounded-xl mb-4">
+					<p className="text-sm font-semibold text-gray-700 mb-2">Try these:</p>
+					<div className="flex flex-wrap gap-2">
+						{data.examples.map((ex, i) => (
+							<code key={i} className="bg-white px-3 py-1 rounded-lg text-sm text-indigo-600">
+								"{ex}"
+							</code>
+						))}
+					</div>
+				</div>
+
+				<p className="text-xs italic text-indigo-600 mb-6">💡 {data.tip}</p>
+
+				<div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+					<motion.div
+						className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
+						initial={{ width: 0 }}
+						animate={{ width: '100%' }}
+						transition={{ duration: 30, ease: 'linear' }}
+					/>
+				</div>
+				<p className="text-center text-sm text-gray-500 mt-2">Preparing your 5 new images...</p>
+			</div>
+		</motion.div>
+	);
+}
+
+

@@ -5,6 +5,7 @@ import TrainingSummary from '@/components/TrainingSummary';
 import ProgressHeader from '@/components/ProgressHeader';
 import { getNextTier, getTierFromScore, getTierLabel, CURRICULUM, type Tier } from '@/lib/tiers';
 import { saveRoundState, loadLevelState, saveLevelState, incrementLevel, type LevelState } from '@/lib/trainingUtils';
+import LevelBriefingOverlay from '@/components/LevelBriefingOverlay';
 
 type Target = { goldToken: string; imageDataUrl: string; label?: string; tier?: Tier };
 type TrainingState = {
@@ -72,10 +73,43 @@ export default function TrainingMode() {
 	const [isAdvancingRound, setIsAdvancingRound] = useState<boolean>(false);
 	const [showLevelToast, setShowLevelToast] = useState<boolean>(false);
 	const [isFreePlay, setIsFreePlay] = useState<boolean>(false);
+	// Level briefing overlay state
+	const [showBriefing, setShowBriefing] = useState<boolean>(false);
+	const [briefingLevel, setBriefingLevel] = useState<string | null>(null);
 	const initializingRef = useRef(initializing);
 	useEffect(() => {
 		initializingRef.current = initializing;
 	}, [initializing]);
+	const prevTierRef = useRef<Tier>(null as any);
+	const initialMountRef = useRef<boolean>(true);
+	// Map internal tiers to briefing keys
+	const BRIEFING_MAP: Record<Tier, 'basics' | 'details' | 'scenes' | 'style' | 'precision'> = {
+		easy: 'basics',
+		medium: 'details',
+		hard: 'scenes',
+		advanced: 'style',
+		expert: 'precision',
+	};
+	// Show briefing overlay on tier change (skip very first load)
+	useEffect(() => {
+		if (initialMountRef.current) {
+			initialMountRef.current = false;
+			prevTierRef.current = tier;
+			return;
+		}
+		if (prevTierRef.current !== tier) {
+			prevTierRef.current = tier;
+			setBriefingLevel(BRIEFING_MAP[tier]);
+			setShowBriefing(true);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [tier]);
+	// Auto-close briefing when images finish loading
+	useEffect(() => {
+		if (!initializing && showBriefing) {
+			setShowBriefing(false);
+		}
+	}, [initializing, showBriefing]);
 
 	function getUnlockedRank(): number {
 		// levelState.current is 1-based; map to 0-based index into TIER_ORDER
@@ -335,6 +369,7 @@ export default function TrainingMode() {
 					generatedImages={training.generatedImages}
 					lastSuggestion={lastNote}
 					lastTip={lastTip}
+					currentTier={tier}
 					onNewSet={async () => {
 						if (isLevelLoading) return;
 						setIsLevelLoading(true);
@@ -376,6 +411,7 @@ export default function TrainingMode() {
 
 	return (
 		<div className="max-w-5xl mx-auto relative">
+			{showBriefing && briefingLevel ? <LevelBriefingOverlay level={briefingLevel} /> : null}
 			{showLevelToast ? (
 				(() => {
 					const unlockedIdx = Math.max(0, TIER_ORDER.findIndex((t) => t === tier));
