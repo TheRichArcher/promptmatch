@@ -55,7 +55,26 @@ export async function POST(req: NextRequest) {
 		// HARD OVERRIDE: Basics (easy) must be flat 2D shapes only.
 		// We bypass the image pool entirely and return deterministic SVG targets.
 		if (tier === 'easy' && !stream) {
-			const seeds = EASY_SEEDS.slice(0, 5);
+			// Shuffle the easy pool and pick 5 unique; auto-generate replacements if fewer than 5 exist
+			const seeds = (() => {
+				const shuffled = [...EASY_SEEDS].sort(() => Math.random() - 0.5);
+				const needed = 5 - Math.min(5, shuffled.length);
+				if (needed <= 0) return shuffled.slice(0, 5);
+				const COLORS = ['red','blue','green','yellow','orange','pink','black'];
+				const SHAPES = ['circle','square','triangle','star','diamond','oval','hexagon'];
+				const extra: string[] = [];
+				const seen = new Set<string>(shuffled);
+				while (extra.length < needed) {
+					const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+					const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+					const seed = `${color} ${shape}`;
+					if (!seen.has(seed)) {
+						seen.add(seed);
+						extra.push(seed);
+					}
+				}
+				return shuffled.slice(0, Math.min(5, shuffled.length)).concat(extra).slice(0, 5);
+			})();
 			const targets = seeds.map((seed) => {
 				const svg = buildShapeSvg(seed);
 				const imageDataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
@@ -79,7 +98,25 @@ export async function POST(req: NextRequest) {
 						enqueue({ status: 'starting', tier });
 						// HARD OVERRIDE (stream): Basics (easy) returns deterministic SVG shapes
 						if (tier === 'easy') {
-							const seeds = EASY_SEEDS.slice(0, 5);
+							const seeds = (() => {
+								const shuffled = [...EASY_SEEDS].sort(() => Math.random() - 0.5);
+								const needed = 5 - Math.min(5, shuffled.length);
+								if (needed <= 0) return shuffled.slice(0, 5);
+								const COLORS = ['red','blue','green','yellow','orange','pink','black'];
+								const SHAPES = ['circle','square','triangle','star','diamond','oval','hexagon'];
+								const extra: string[] = [];
+								const seen = new Set<string>(shuffled);
+								while (extra.length < needed) {
+									const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+									const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+									const seed = `${color} ${shape}`;
+									if (!seen.has(seed)) {
+										seen.add(seed);
+										extra.push(seed);
+									}
+								}
+								return shuffled.slice(0, Math.min(5, shuffled.length)).concat(extra).slice(0, 5);
+							})();
 							const targets = seeds.map((seed) => {
 								const svg = buildShapeSvg(seed);
 								const imageDataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;

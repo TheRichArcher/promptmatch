@@ -15,8 +15,8 @@ export function generateFeedback(prompt: string, target: TargetMetadata): { note
 	} catch {}
 	if (tier === 'easy') {
 		const result = {
-			note: `Try: "${label}"`,
-			tip: 'Use 2–3 words: color + shape',
+			note: 'Great! Keep naming simple shapes with colors.',
+			tip: 'Tip: Keep it short — 2–3 words is enough.',
 		};
 		try {
 			// eslint-disable-next-line no-console

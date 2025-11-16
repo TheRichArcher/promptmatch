@@ -93,13 +93,52 @@ export async function POST(req: NextRequest) {
 				const similarity = cosineSimilarity(v1, v2);
 				const similarity01 = Math.max(0, Math.min(1, (similarity + 1) / 2));
 				let aiScore = Math.round(similarity01 * 100);
-				// Easy = 95 guaranteed when prompt <=3 words and matches all label words (color + shape)
+				// Easy tier: rely on model similarity; apply only small optional boosts and capped penalty. No handcrafted strict rules.
 				if (targetMeta?.tier === 'easy') {
-					const promptWords = String(prompt || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-					const labelWords = String(targetMeta?.label || '').toLowerCase().split(/\s+/).filter(Boolean);
-					if (promptWords.length > 0 && promptWords.length <= 3 && labelWords.every((w) => promptWords.includes(w))) {
-						aiScore = 95;
+					const lowerPrompt = String(prompt || '').toLowerCase();
+					const lowerLabel = String(targetMeta?.label || '').toLowerCase();
+					// Color detection
+					const COLORS = ['red','blue','green','yellow','orange','pink','black','white','purple','brown','gray','grey','cyan','magenta'];
+					const labelColor = COLORS.find((c) => lowerLabel.includes(c));
+					const colorMatched = Boolean(labelColor && lowerPrompt.includes(labelColor));
+					// General object noun (shape) detection with broad synonyms
+					const SHAPE_MAP: Record<string, string[]> = {
+						circle: ['circle','dot','disc','disk'],
+						square: ['square','box'],
+						triangle: ['triangle'],
+						star: ['star'],
+						heart: ['heart'],
+						oval: ['oval','ellipse'],
+						diamond: ['diamond','rhombus'],
+						hexagon: ['hexagon','hex'],
+						rectangle: ['rectangle','rect','oblong'],
+					};
+					const allShapeTokens = Object.values(SHAPE_MAP).flat();
+					const canonicalOf = (word: string): string | null => {
+						for (const [canon, list] of Object.entries(SHAPE_MAP)) {
+							if (list.includes(word)) return canon;
+						}
+						return null;
+					};
+					const labelShape = lowerLabel
+						.split(/\s+/)
+						.map(canonicalOf)
+						.find((v) => v) || null;
+					const promptShapeToken = lowerPrompt
+						.split(/\s+/)
+						.find((w) => allShapeTokens.includes(w));
+					const promptShape = promptShapeToken ? canonicalOf(promptShapeToken) : null;
+					const objectMatched = Boolean(labelShape && promptShape && labelShape === promptShape);
+					// Small boosts
+					let boost = 0;
+					if (colorMatched) boost += 3;
+					if (objectMatched) boost += 5;
+					// Capped penalty for missing object detail (only if similarity is not already very high)
+					let penalty = 0;
+					if (!objectMatched && similarity01 < 0.8) {
+						penalty = Math.min(10, Math.max(0, Math.round((0.8 - similarity01) * 50)));
 					}
+					aiScore = Math.max(0, Math.min(100, Math.round(similarity01 * 100 + boost - penalty)));
 				}
 				const feedback = generateFeedback(prompt, feedbackTarget);
 				try {
@@ -123,15 +162,54 @@ export async function POST(req: NextRequest) {
 
 			// === ONLY FALLBACK IF VERTEX TRULY FAILED ===
 			const simJ = jaccardSimilarity(prompt, targetDescription);
-			const bonus = heuristicPromptBonus(prompt);
-			let aiScore = computeFinalScore(simJ, bonus);
-			// Easy = 95 guaranteed when prompt <=3 words and matches all label words (color + shape)
+			let aiScore: number;
 			if (targetMeta?.tier === 'easy') {
-				const promptWords = String(prompt || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-				const labelWords = String(targetMeta?.label || '').toLowerCase().split(/\s+/).filter(Boolean);
-				if (promptWords.length > 0 && promptWords.length <= 3 && labelWords.every((w) => promptWords.includes(w))) {
-					aiScore = 95;
+				// Easy tier: no handcrafted keyword bonuses; small optional boosts; capped penalty
+				const similarity01Easy = simJ; // fallback similarity
+				const lowerPrompt = String(prompt || '').toLowerCase();
+				const lowerLabel = String(targetMeta?.label || '').toLowerCase();
+				const COLORS = ['red','blue','green','yellow','orange','pink','black','white','purple','brown','gray','grey','cyan','magenta'];
+				const labelColor = COLORS.find((c) => lowerLabel.includes(c));
+				const colorMatched = Boolean(labelColor && lowerPrompt.includes(labelColor));
+				const SHAPE_MAP: Record<string, string[]> = {
+					circle: ['circle','dot','disc','disk'],
+					square: ['square','box'],
+					triangle: ['triangle'],
+					star: ['star'],
+					heart: ['heart'],
+					oval: ['oval','ellipse'],
+					diamond: ['diamond','rhombus'],
+					hexagon: ['hexagon','hex'],
+					rectangle: ['rectangle','rect','oblong'],
+				};
+				const allShapeTokens = Object.values(SHAPE_MAP).flat();
+				const canonicalOf = (word: string): string | null => {
+					for (const [canon, list] of Object.entries(SHAPE_MAP)) {
+						if (list.includes(word)) return canon;
+					}
+					return null;
+				};
+				const labelShape = lowerLabel
+					.split(/\s+/)
+					.map(canonicalOf)
+					.find((v) => v) || null;
+				const promptShapeToken = lowerPrompt
+					.split(/\s+/)
+					.find((w) => allShapeTokens.includes(w));
+				const promptShape = promptShapeToken ? canonicalOf(promptShapeToken) : null;
+				const objectMatched = Boolean(labelShape && promptShape && labelShape === promptShape);
+				let boost = 0;
+				if (colorMatched) boost += 3;
+				if (objectMatched) boost += 5;
+				let penalty = 0;
+				if (!objectMatched && similarity01Easy < 0.8) {
+					penalty = Math.min(10, Math.max(0, Math.round((0.8 - similarity01Easy) * 50)));
 				}
+				aiScore = Math.max(0, Math.min(100, Math.round(similarity01Easy * 100 + boost - penalty)));
+			} else {
+				// Non-easy tiers keep heuristic bonuses
+				const bonus = heuristicPromptBonus(prompt);
+				aiScore = computeFinalScore(simJ, bonus);
 			}
 			const feedback = generateFeedback(prompt, feedbackTarget);
 			try {
@@ -144,7 +222,7 @@ export async function POST(req: NextRequest) {
 				{
 					aiScore,
 					similarity01: simJ,
-					bonus,
+					bonus: targetMeta?.tier === 'easy' ? 0 : heuristicPromptBonus(prompt),
 					feedback,
 					scoringMode: process.env.NODE_ENV !== 'production' ? 'jaccard-fallback' : undefined,
 					errorMessage: process.env.NODE_ENV !== 'production' ? vertexError?.substring(0, 200) || null : null,
@@ -159,15 +237,54 @@ export async function POST(req: NextRequest) {
 			scoringMode = 'jaccard-fallback';
 		}
 
-		const bonus = heuristicPromptBonus(prompt);
-		let aiScore = computeFinalScore(similarity01, bonus);
-		// Easy = 95 guaranteed when prompt <=3 words and matches all label words (color + shape)
+		let aiScore: number;
 		if (targetMeta?.tier === 'easy') {
-			const promptWords = String(prompt || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-			const labelWords = String(targetMeta?.label || '').toLowerCase().split(/\s+/).filter(Boolean);
-			if (promptWords.length > 0 && promptWords.length <= 3 && labelWords.every((w) => promptWords.includes(w))) {
-				aiScore = 95;
+			// Easy tier: rely on similarity; small optional boosts; capped penalty; no heuristic bonus
+			const lowerPrompt = String(prompt || '').toLowerCase();
+			const lowerLabel = String(
+				targetMeta?.label || targetDescription || '',
+			).toLowerCase();
+			const COLORS = ['red','blue','green','yellow','orange','pink','black','white','purple','brown','gray','grey','cyan','magenta'];
+			const labelColor = COLORS.find((c) => lowerLabel.includes(c));
+			const colorMatched = Boolean(labelColor && lowerPrompt.includes(labelColor));
+			const SHAPE_MAP: Record<string, string[]> = {
+				circle: ['circle','dot','disc','disk'],
+				square: ['square','box'],
+				triangle: ['triangle'],
+				star: ['star'],
+				heart: ['heart'],
+				oval: ['oval','ellipse'],
+				diamond: ['diamond','rhombus'],
+				hexagon: ['hexagon','hex'],
+				rectangle: ['rectangle','rect','oblong'],
+			};
+			const allShapeTokens = Object.values(SHAPE_MAP).flat();
+			const canonicalOf = (word: string): string | null => {
+				for (const [canon, list] of Object.entries(SHAPE_MAP)) {
+					if (list.includes(word)) return canon;
+				}
+				return null;
+			};
+			const labelShape = lowerLabel
+				.split(/\s+/)
+				.map(canonicalOf)
+				.find((v) => v) || null;
+			const promptShapeToken = lowerPrompt
+				.split(/\s+/)
+				.find((w) => allShapeTokens.includes(w));
+			const promptShape = promptShapeToken ? canonicalOf(promptShapeToken) : null;
+			const objectMatched = Boolean(labelShape && promptShape && labelShape === promptShape);
+			let boost = 0;
+			if (colorMatched) boost += 3;
+			if (objectMatched) boost += 5;
+			let penalty = 0;
+			if (!objectMatched && similarity01 < 0.8) {
+				penalty = Math.min(10, Math.max(0, Math.round((0.8 - similarity01) * 50)));
 			}
+			aiScore = Math.max(0, Math.min(100, Math.round(similarity01 * 100 + boost - penalty)));
+		} else {
+			const bonus = heuristicPromptBonus(prompt);
+			aiScore = computeFinalScore(similarity01, bonus);
 		}
 		const feedback = generateFeedback(prompt, feedbackTarget);
 		try {
@@ -181,7 +298,7 @@ export async function POST(req: NextRequest) {
 			{
 				aiScore,
 				similarity01,
-				bonus,
+				bonus: targetMeta?.tier === 'easy' ? 0 : heuristicPromptBonus(prompt),
 				feedback,
 				scoringMode: scoringMode === 'jaccard-fallback' && process.env.NODE_ENV === 'production' ? undefined : scoringMode,
 				errorMessage: process.env.NODE_ENV !== 'production' ? errorMessage : null,
