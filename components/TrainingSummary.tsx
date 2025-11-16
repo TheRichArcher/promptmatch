@@ -7,6 +7,7 @@ import { saveProgress } from '@/lib/progress';
 import { useRouter } from 'next/navigation';
 import { getNextTier, getTierLabel, type Tier } from '@/lib/tiers';
 import LoadingOverlay from './LoadingOverlay';
+import LevelBriefingOverlay from '@/components/LevelBriefingOverlay';
 
 type Props = {
 	scores: number[];
@@ -53,6 +54,13 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 	const nextTier = getNextTier(currentTier);
 	const tierLabel = getTierLabel(currentTier);
 	const nextTierLabel = getTierLabel(nextTier);
+	const BRIEFING_MAP: Record<Tier, 'basics' | 'details' | 'scenes' | 'style' | 'precision'> = {
+		easy: 'basics',
+		medium: 'details',
+		hard: 'scenes',
+		advanced: 'style',
+		expert: 'precision',
+	};
 
 	useEffect(() => {
 		const timer = setTimeout(() => setShowConfetti(false), 5000);
@@ -117,7 +125,12 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 
 	return (
 		<div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-2xl animate-fadeIn">
-			<LoadingOverlay isLoading={isLoadingNext} message={loadingMessage} className="animate-fadeIn" />
+			{/* While loading next level, show the Level Briefing overlay instead of the generic loader */}
+			{isLoadingNext ? (
+				<LevelBriefingOverlay level={BRIEFING_MAP[nextTier]} />
+			) : (
+				<LoadingOverlay isLoading={isLoadingNext} message={loadingMessage} className="animate-fadeIn" />
+			)}
 			{isLoadingNext ? <Confetti recycle={false} /> : null}
 			{showToast ? (
 				<div className="fixed bottom-4 right-4 bg-green-600 text-white p-3 rounded-lg shadow-lg animate-fadeIn">
