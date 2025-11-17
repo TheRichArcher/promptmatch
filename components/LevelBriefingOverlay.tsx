@@ -66,10 +66,23 @@ const BRIEFINGS: Record<
 	},
 	precision: {
 		title: 'Precision: Engineer the Output',
-		desc: 'Full control',
-		focus: ['Negative prompts', 'Aspect ratio', 'Hierarchy'],
-		examples: ['no scratches', '--ar 16:9'],
-		tip: 'Engineers don’t guess — they compile.',
+		desc: 'Full control. Keep everything you’ve learned — now eliminate flaws and lock in perfection.',
+		focus: [
+			'Object + color',
+			'Texture + light',
+			'Real scene',
+			'Artistic direction (lens, medium, aesthetic)',
+			'Now add precision tools:',
+			'– Negative prompt: --no blur, scratches, text, deformation',
+			'– Aspect ratio: --ar 16:9, --ar 9:16, --ar 1:1',
+			'– Weighting & hierarchy: (masterpiece), ((detailed)), [lowres]',
+			'– Quality boosters: masterpiece, best quality, ultra-detailed',
+		],
+		examples: [
+			'close-up portrait of a woman under umbrella in heavy rain at night, 85mm lens, cinematic lighting, --no blur, --no watermark, --ar 9:16, masterpiece',
+			'vintage red Cadillac parked at neon-lit diner at dusk, 35mm film, moody color grading, --no people, --no modern cars, --ar 16:9, highly detailed',
+		],
+		tip: 'Start with your best Level 4 prompt — then engineer it to perfection!',
 	},
 };
 
