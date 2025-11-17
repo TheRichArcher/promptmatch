@@ -48,10 +48,21 @@ const BRIEFINGS: Record<
 	},
 	style: {
 		title: 'Style: Direct the Camera',
-		desc: 'You’re the artist',
-		focus: ['50mm lens', 'digital painting', 'cinematic'],
-		examples: ['close-up shot', 'Pixar style'],
-		tip: 'Control how it looks, not just what.',
+		desc: 'You’re the artist. Keep everything you’ve learned — now control how it looks.',
+		focus: [
+			'Object + color',
+			'Texture + light',
+			'Real scene (surface + setting)',
+			'Now add artistic direction:',
+			'Camera: close-up, wide angle, 50mm lens, low angle',
+			'Medium: digital painting, oil on canvas, film photo',
+			'Aesthetic: cinematic, Pixar style, cyberpunk, vintage polaroid',
+		],
+		examples: [
+			'close-up of a shiny red apple on wooden kitchen counter, dramatic overhead light, shot on 35mm film, cinematic',
+			'yellow rubber duck floating in clear pool water at golden hour, wide angle lens, rendered in Pixar animation style',
+		],
+		tip: 'Start with your best Level 3 prompt — then add the style!',
 	},
 	precision: {
 		title: 'Precision: Engineer the Output',
