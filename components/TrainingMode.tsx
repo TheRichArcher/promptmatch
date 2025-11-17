@@ -289,7 +289,7 @@ export default function TrainingMode() {
 			if (!scoreResp.ok) throw new Error(scoreResp.json?.error || 'Failed to score image');
 			const scoreJson = scoreResp.json;
 			const aiScore: number = scoreJson?.aiScore ?? 0;
-			const note: string = scoreJson?.feedback?.note ?? '';
+			const note: string = (scoreJson?.suggestion as string) || (scoreJson?.feedback?.note as string) || '';
 			const tip: string = scoreJson?.feedback?.tip ?? '';
 
 			// Store results but do not advance round yet; show score and Next button
