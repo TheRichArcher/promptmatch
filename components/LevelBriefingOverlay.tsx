@@ -33,10 +33,18 @@ const BRIEFINGS: Record<
 	},
 	scenes: {
 		title: 'Scenes: Build the World',
-		desc: 'No floating objects',
-		focus: ['On a desk', 'In a forest', 'Underwater'],
-		examples: ['robot on workbench', 'apple in kitchen'],
-		tip: 'Give Nano Banana a stage.',
+		desc: 'Place your object in a real environment. No floating. No blank backgrounds.',
+		focus: [
+			'Object + color',
+			'Texture + light',
+			'A surface (on a desk, on the ground, on a shelf)',
+			'A simple setting around it (kitchen, forest, workshop)',
+		],
+		examples: [
+			'shiny red apple on wooden counter with soft morning light',
+			'yellow robot on metal workbench in a garage',
+		],
+		tip: 'Put your object somewhere real. Give it a stage.',
 	},
 	style: {
 		title: 'Style: Direct the Camera',
