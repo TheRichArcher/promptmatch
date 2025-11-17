@@ -114,7 +114,13 @@ export async function autoPopulateTierImages(projectRoot: string, tier: Tier): P
 				'skateboard on a sunny beach boardwalk, low angle shot, hard midday shadows, 24mm lens, motion blur, high contrast',
 				'vintage car parked at dusk under neon signs, moody cinematic color grading, 50mm f/1.8, shallow depth of field, bokeh highlights',
 			],
-		expert: ['surreal landscape with melting clocks', 'dragon made of clouds', 'robot holding flower', 'neon jellyfish in deep ocean', 'steampunk clock tower at midnight'],
+		expert: [
+			'close-up portrait of a woman under umbrella in heavy rain at night, 85mm lens, cinematic lighting, --no blur, --no watermark, --ar 9:16, masterpiece',
+			'vintage red Cadillac parked at neon-lit diner at dusk, 35mm film, moody color grading, --no people, --no modern cars, --ar 16:9, highly detailed',
+			'majestic white dragon flying through golden hour clouds, backlit sun, volumetric light, --no text, --no watermark, --ar 16:9, ultra-detailed',
+			'cozy still life of coffee and open notebook on wooden desk near window, soft morning light, 50mm lens look, subtle film grain, --no people, --ar 3:2, masterpiece',
+			'cyberpunk alley with neon signs in rain, reflective puddles, low angle 24mm, cinematic color grading, --no people, --ar 16:9, ultra-detailed',
+		],
 	};
 
 	const { group, leaf } = tierToPath(tier);

@@ -66,7 +66,12 @@ export function generateFeedback(prompt: string, target: TargetMetadata): { note
 	// Default: still target-aware, no generic curriculum substitution
 	const result = {
 		note: `Try: "${String(target?.goldPrompt || label).trim()}"`,
-		tip: 'Be specific about color, texture, and lighting',
+		tip:
+			tier === 'expert'
+				? 'Use negatives (--no ...), aspect ratio (--ar ...), weighting ((detailed)), and quality boosters.'
+				: tier === 'advanced'
+				? 'Add camera and art direction: lens, medium, aesthetic.'
+				: 'Be specific about color, texture, and lighting',
 	};
 	try {
 		// eslint-disable-next-line no-console
