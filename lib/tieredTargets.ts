@@ -100,7 +100,13 @@ export async function autoPopulateTierImages(projectRoot: string, tier: Tier): P
 			'green glass bottle, smooth surface, backlit, simple studio background with soft gradient, no scene objects',
 			'silver metal sphere, glossy shiny surface, glowing edges, simple studio background with soft gradient, no scene objects',
 		],
-		hard: ['city street at night', 'bowl of ramen with chopsticks', 'stack of books on desk', 'lighthouse at sunset', 'robot in a garden'],
+		hard: [
+			'busy downtown new york streets at midnight with wet pavement reflections, neon signs, light rain, cinematic',
+			'vintage books stacked on a wooden desk in a professor’s office with warm light coming in from a window, glasses and coffee cup nearby',
+			'steaming bowl of ramen with chopsticks on a wooden counter in a small tokyo shop, steam rising, soft neon reflections',
+			'lighthouse at sunset with waves crashing against dark rocks, dramatic sky, warm orange glow',
+			'chrome robot watering flowers in a lush garden at golden hour, small bird perched on hand',
+		],
 		advanced: ['person under umbrella in rain', 'cat painting a picture', 'crowd at concert', 'skateboard on sunny beach boardwalk', 'vintage car at dusk'],
 		expert: ['surreal landscape with melting clocks', 'dragon made of clouds', 'robot holding flower', 'neon jellyfish in deep ocean', 'steampunk clock tower at midnight'],
 	};

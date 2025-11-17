@@ -43,8 +43,11 @@ export function getGenerationPrompt(tier: string): string {
 		'silver metal sphere, glossy shiny surface, glowing edges, simple studio background with soft gradient, no scene objects',
 	];
 	const hard = [
-		'red car on busy city street at sunset',
-		'coffee cup next to open book on wooden desk',
+		'busy downtown new york streets at midnight with wet pavement reflections, neon signs, light rain, cinematic',
+		'vintage books stacked on a wooden desk in a professor’s office with warm light coming in from a window, glasses and coffee cup nearby',
+		'steaming bowl of ramen with chopsticks on a wooden counter in a small tokyo shop, steam rising, soft neon reflections',
+		'lighthouse at sunset with waves crashing against dark rocks, dramatic sky, warm orange glow',
+		'chrome robot watering flowers in a lush garden at golden hour, small bird perched on hand',
 	];
 	const advanced = [
 		'mountain lake with perfect reflection at golden hour',
