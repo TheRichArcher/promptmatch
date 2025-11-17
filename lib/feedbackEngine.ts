@@ -52,9 +52,9 @@ export function generateFeedback(prompt: string, target: TargetMetadata): { note
 	}
 	if (tier === 'medium') {
 		const gold = String(target?.goldPrompt || label).trim();
-		const note = humanizeMedium(gold || label);
+		// Show the full, complete gold prompt to prevent regression to partial phrasing
 		const result = {
-			note,
+			note: `Try: "${gold}"`,
 			tip: 'Add texture (shiny, fuzzy) + light (soft, glowing)',
 		};
 		try {
