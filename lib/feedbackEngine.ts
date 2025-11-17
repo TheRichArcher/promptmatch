@@ -68,7 +68,7 @@ export function generateFeedback(prompt: string, target: TargetMetadata): { note
 		note: `Try: "${String(target?.goldPrompt || label).trim()}"`,
 		tip:
 			tier === 'expert'
-				? 'Use negatives (--no ...), aspect ratio (--ar ...), weighting ((detailed)), and quality boosters.'
+				? 'Use negatives (--no ...), aspect ratio (--ar ...), and quality boosters (masterpiece, ultra-detailed).'
 				: tier === 'advanced'
 				? 'Add camera and art direction: lens, medium, aesthetic.'
 				: 'Be specific about color, texture, and lighting',
