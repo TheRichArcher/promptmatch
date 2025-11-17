@@ -8,12 +8,7 @@ export async function POST(req: NextRequest) {
 		const body = await req.json().catch(() => ({}));
 		const tokens: string[] = Array.isArray(body?.tokens) ? body.tokens.filter((t: any) => typeof t === 'string') : [];
 
-		const allowed = String(process.env.SHOW_GOLD_PROMPTS_AFTER_TRAIN || '').toLowerCase() === 'true';
-		if (!allowed) {
-			// Return shape without revealing prompts
-			return NextResponse.json({ allowed: false, goldPrompts: Array(tokens.length).fill(null) }, { status: 200 });
-		}
-
+		// Always reveal gold prompts in summary to reinforce learning
 		const goldPrompts: (string | null)[] = tokens.map((tok) => {
 			try {
 				return unsealGoldPrompt(tok);

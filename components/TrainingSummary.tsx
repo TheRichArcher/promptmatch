@@ -179,20 +179,17 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 							</div>
 							<p className="text-xs font-bold mt-1">{scores[i] ?? '-'}</p>
 							<p className="text-xs text-gray-600">{feedback[i] ?? ''}</p>
-							{/* Learning moment - user prompt + gold prompt */}
+							{/* Learning moment - always show user prompt + gold prompt */}
 							<div className="mt-1 text-[10px] text-gray-700">
-								{scores[i] >= 90 ? (
-									<p className="font-medium">Matched Gold Prompt</p>
-								) : (
-									<p><span className="font-medium">Your prompt:</span> {userPrompts?.[i] ?? ''}</p>
-								)}
+								<p><span className="font-medium">Your prompt:</span> {userPrompts?.[i] ?? ''}</p>
+								{scores[i] >= 90 ? <p className="font-medium text-purple-700">Matched Gold Prompt</p> : null}
 							</div>
-							{goldAllowed && goldPrompts?.[i] ? (
+							{goldPrompts?.[i] ? (
 								<div className="mt-1 text-[10px] text-gray-700">
 									<span className="inline-block mr-1" aria-hidden="true">💡</span>
 									<span className="sr-only">Learning moment: </span>
-									<span className="font-medium">Ideal prompt: </span>
-									<span>{goldPrompts[i]}</span>
+									<span className="font-medium">Gold Prompt: </span>
+									<span>"{goldPrompts[i]}"</span>
 								</div>
 							) : null}
 						</div>

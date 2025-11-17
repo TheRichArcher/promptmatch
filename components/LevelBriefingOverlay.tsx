@@ -21,10 +21,15 @@ const BRIEFINGS: Record<
 	},
 	details: {
 		title: 'Details: Add Light + Texture',
-		desc: 'One object. Plain background. Focus on how it feels and how it’s lit.',
-		focus: ['Texture: shiny, matte, fuzzy, rough', 'Light: soft shadows, backlit, glowing', 'NO tables, floors, or scenes'],
-		examples: ['shiny metal sphere', 'fuzzy yellow duck with soft light'],
-		tip: 'Describe the surface and the light — nothing else.',
+		desc: 'Start with the object and color, then add how it feels and how it’s lit.',
+		focus: [
+			'Name the object (cup, apple, duck, sphere)',
+			'Add the color (red, blue, green, yellow)',
+			'Add one texture word (shiny, matte, fuzzy, glossy)',
+			'Add one light word (soft shadows, warm light, glowing, backlit)',
+		],
+		examples: ['blue plastic cup, matte surface, warm light', 'shiny red apple with soft light'],
+		tip: 'Start with the object and color, then add surface + light. That’s it.',
 	},
 	scenes: {
 		title: 'Scenes: Build the World',
