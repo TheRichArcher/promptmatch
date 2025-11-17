@@ -27,7 +27,7 @@ export function getGenerationPrompt(tier: string): string {
 		const obj = objects[Math.floor(Math.random() * objects.length)];
 		const tex = textures[Math.floor(Math.random() * textures.length)];
 		const light = lighting[Math.floor(Math.random() * lighting.length)];
-		return `${obj}, ${tex} surface, ${light}, simple plain background, centered, minimal style`;
+		return `${obj}, ${tex} surface, ${light}, simple studio background with soft gradient, no scene objects`;
 	}
 	const easy = [
 		'green triangle on white background',
@@ -36,11 +36,11 @@ export function getGenerationPrompt(tier: string): string {
 		'yellow star on white surface',
 	];
 	const medium = [
-		'yellow rubber duck, fuzzy texture, soft shadows, simple plain background, centered, minimal style',
-		'red apple, shiny surface, cool light, simple plain background, centered, minimal style',
-		'blue plastic cup, matte surface, warm light, simple plain background, centered, minimal style',
-		'green glass bottle, smooth surface, backlit, simple plain background, centered, minimal style',
-		'silver metal sphere, glossy shiny surface, glowing edges, simple plain background, centered, minimal style',
+		'yellow rubber duck, fuzzy texture, soft shadows, simple studio background with soft gradient, no scene objects',
+		'red apple, shiny surface, cool light, simple studio background with soft gradient, no scene objects',
+		'blue plastic cup, matte surface, warm light, simple studio background with soft gradient, no scene objects',
+		'green glass bottle, smooth surface, backlit, simple studio background with soft gradient, no scene objects',
+		'silver metal sphere, glossy shiny surface, glowing edges, simple studio background with soft gradient, no scene objects',
 	];
 	const hard = [
 		'red car on busy city street at sunset',

@@ -159,10 +159,9 @@ export async function POST(req: NextRequest) {
 				if ((targetMeta?.tier ?? tier) === 'medium') {
 					const lower = String(prompt || '').toLowerCase();
 					const hasTexture = /shiny|matte|fuzzy|rough|smooth|glossy/.test(lower);
-					const hasLight = /shadow|light|glowing|backlit|warm|cool/.test(lower);
-					const wordCount = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
-					if (hasTexture && hasLight && wordCount < 10) {
-						aiScore = Math.max(aiScore, 90);
+					const hasLight = /shadow|light|glowing|backlit|warm|cool|glow/.test(lower);
+					if (hasTexture && hasLight) {
+						aiScore = Math.max(aiScore, 88);
 					}
 				}
 				const feedback = generateFeedback(prompt, feedbackTarget);
@@ -240,10 +239,9 @@ export async function POST(req: NextRequest) {
 			if ((targetMeta?.tier ?? tier) === 'medium') {
 				const lower = String(prompt || '').toLowerCase();
 				const hasTexture = /shiny|matte|fuzzy|rough|smooth|glossy/.test(lower);
-				const hasLight = /shadow|light|glowing|backlit|warm|cool/.test(lower);
-				const wordCount = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
-				if (hasTexture && hasLight && wordCount < 10) {
-					aiScore = Math.max(aiScore, 90);
+				const hasLight = /shadow|light|glowing|backlit|warm|cool|glow/.test(lower);
+				if (hasTexture && hasLight) {
+					aiScore = Math.max(aiScore, 88);
 				}
 			}
 			const feedback = generateFeedback(prompt, feedbackTarget);
@@ -325,10 +323,9 @@ export async function POST(req: NextRequest) {
 		if ((targetMeta?.tier ?? tier) === 'medium') {
 			const lower = String(prompt || '').toLowerCase();
 			const hasTexture = /shiny|matte|fuzzy|rough|smooth|glossy/.test(lower);
-			const hasLight = /shadow|light|glowing|backlit|warm|cool/.test(lower);
-			const wordCount = String(prompt || '').trim().split(/\s+/).filter(Boolean).length;
-			if (hasTexture && hasLight && wordCount < 10) {
-				aiScore = Math.max(aiScore, 90);
+			const hasLight = /shadow|light|glowing|backlit|warm|cool|glow/.test(lower);
+			if (hasTexture && hasLight) {
+				aiScore = Math.max(aiScore, 88);
 			}
 		}
 		const feedback = generateFeedback(prompt, feedbackTarget);

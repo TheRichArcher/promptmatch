@@ -94,11 +94,11 @@ export async function autoPopulateTierImages(projectRoot: string, tier: Tier): P
 	const promptsByTier: Record<Tier, string[]> = {
 		easy: ['red circle on white background', 'blue square', 'green triangle', 'yellow star icon', 'yellow heart icon'],
 		medium: [
-			'yellow rubber duck, fuzzy texture, soft shadows, simple plain background, centered, minimal style',
-			'red apple, shiny surface, cool light, simple plain background, centered, minimal style',
-			'blue plastic cup, matte surface, warm light, simple plain background, centered, minimal style',
-			'green glass bottle, smooth surface, backlit, simple plain background, centered, minimal style',
-			'silver metal sphere, glossy shiny surface, glowing edges, simple plain background, centered, minimal style',
+			'yellow rubber duck, fuzzy texture, soft shadows, simple studio background with soft gradient, no scene objects',
+			'red apple, shiny surface, cool light, simple studio background with soft gradient, no scene objects',
+			'blue plastic cup, matte surface, warm light, simple studio background with soft gradient, no scene objects',
+			'green glass bottle, smooth surface, backlit, simple studio background with soft gradient, no scene objects',
+			'silver metal sphere, glossy shiny surface, glowing edges, simple studio background with soft gradient, no scene objects',
 		],
 		hard: ['city street at night', 'bowl of ramen with chopsticks', 'stack of books on desk', 'lighthouse at sunset', 'robot in a garden'],
 		advanced: ['person under umbrella in rain', 'cat painting a picture', 'crowd at concert', 'skateboard on sunny beach boardwalk', 'vintage car at dusk'],
