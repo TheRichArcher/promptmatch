@@ -5,6 +5,8 @@ import { clearUsedImages, fileToDataUrl, getPoolForTier, pickUniqueImagesWithFal
 import { sealGoldPrompt } from '@/lib/secureText';
 import { getGenerationPrompt } from '@/lib/autogenTargets';
 import { EASY_SEEDS } from '@/lib/tieredTargets';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export const runtime = 'nodejs';
 
@@ -141,7 +143,21 @@ export async function POST(req: NextRequest) {
 						if (picks.length > 0) {
 							enqueue({ status: 'loaded-pool', usedTier, count: picks.length });
 							const targets = picks.map(({ abs, label }) => {
-								const goldToken = sealGoldPrompt(cleanGoldPrompt(label));
+								// Prefer detailed prompt from sidecar metadata if available
+								let goldSource = label;
+								try {
+									const metaPath = path.join(path.dirname(abs), `${path.basename(abs, path.extname(abs))}.json`);
+									if (fs.existsSync(metaPath)) {
+										const metaRaw = fs.readFileSync(metaPath, 'utf8');
+										const meta = JSON.parse(metaRaw) as { prompt?: string; label?: string };
+										if (meta?.prompt && typeof meta.prompt === 'string') {
+											goldSource = meta.prompt;
+										}
+									}
+								} catch {
+									// ignore metadata read/parse errors; fall back to filename label
+								}
+								const goldToken = sealGoldPrompt(cleanGoldPrompt(goldSource));
 								return {
 									goldToken,
 									imageDataUrl: fileToDataUrl(abs),
@@ -208,7 +224,21 @@ export async function POST(req: NextRequest) {
 		if (picks.length > 0) {
 			console.log('[train/init]', '✅ Tiered pool loaded', picks.length, 'tier:', usedTier);
 			const targets = picks.map(({ abs, label }) => {
-				const goldToken = sealGoldPrompt(cleanGoldPrompt(label));
+				// Prefer detailed prompt from sidecar metadata if available
+				let goldSource = label;
+				try {
+					const metaPath = path.join(path.dirname(abs), `${path.basename(abs, path.extname(abs))}.json`);
+					if (fs.existsSync(metaPath)) {
+						const metaRaw = fs.readFileSync(metaPath, 'utf8');
+						const meta = JSON.parse(metaRaw) as { prompt?: string; label?: string };
+						if (meta?.prompt && typeof meta.prompt === 'string') {
+							goldSource = meta.prompt;
+						}
+					}
+				} catch {
+					// ignore metadata read/parse errors; fall back to filename label
+				}
+				const goldToken = sealGoldPrompt(cleanGoldPrompt(goldSource));
 				return {
 					goldToken,
 					imageDataUrl: fileToDataUrl(abs),
