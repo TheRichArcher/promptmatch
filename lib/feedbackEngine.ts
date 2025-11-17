@@ -65,7 +65,7 @@ export function generateFeedback(prompt: string, target: TargetMetadata): { note
 	}
 	// Default: still target-aware, no generic curriculum substitution
 	const result = {
-		note: `Try: "${label}"`,
+		note: `Try: "${String(target?.goldPrompt || label).trim()}"`,
 		tip: 'Be specific about color, texture, and lighting',
 	};
 	try {
