@@ -107,7 +107,13 @@ export async function autoPopulateTierImages(projectRoot: string, tier: Tier): P
 			'lighthouse at sunset with waves crashing against dark rocks, dramatic sky, warm orange glow',
 			'chrome robot watering flowers in a lush garden at golden hour, small bird perched on hand',
 		],
-		advanced: ['person under umbrella in rain', 'cat painting a picture', 'crowd at concert', 'skateboard on sunny beach boardwalk', 'vintage car at dusk'],
+			advanced: [
+				'portrait photo of a person under an umbrella in heavy rain at night, neon reflections on wet street, shallow depth of field, 85mm lens, creamy bokeh, cinematic lighting',
+				'tuxedo cat painting on a canvas in a messy art studio, soft window light, 35mm film look, subtle grain, shallow depth of field',
+				'wide-angle photo of a concert crowd at dusk, stage lights and confetti with smoke plumes, dramatic backlighting, 35mm lens, golden hour color grading',
+				'skateboard on a sunny beach boardwalk, low angle shot, hard midday shadows, 24mm lens, motion blur, high contrast',
+				'vintage car parked at dusk under neon signs, moody cinematic color grading, 50mm f/1.8, shallow depth of field, bokeh highlights',
+			],
 		expert: ['surreal landscape with melting clocks', 'dragon made of clouds', 'robot holding flower', 'neon jellyfish in deep ocean', 'steampunk clock tower at midnight'],
 	};
 
