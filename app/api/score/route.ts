@@ -124,9 +124,9 @@ export async function POST(req: NextRequest) {
 				// eslint-disable-next-line no-console
 				console.log('[score] Image similarity:', similarity01, '→ score:', aiScore);
 				
-				// Daily/Expert tier: use strict scoring with wider range and harsh penalties
+				// Medium/Hard/Advanced/Expert/Daily tier: use balanced scoring
 				const currentTier = targetMeta?.tier ?? tier;
-				if (isDailyChallenge || currentTier === 'expert') {
+				if (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert') {
 					const targetDesc = targetMeta?.goldPrompt || targetDescription || targetMeta?.label || '';
 					aiScore = computeDailyExpertScore(similarity01, prompt, targetDesc);
 				}
@@ -177,15 +177,6 @@ export async function POST(req: NextRequest) {
 					}
 					aiScore = Math.max(0, Math.min(100, Math.round(similarity01 * 100 + boost - penalty)));
 				}
-				// Medium-tier rule: reward explicit texture + light with brevity
-				if ((targetMeta?.tier ?? tier) === 'medium') {
-					const lower = String(prompt || '').toLowerCase();
-					const hasTexture = /shiny|matte|fuzzy|rough|smooth|glossy/.test(lower);
-					const hasLight = /shadow|light|glowing|backlit|warm|cool|glow/.test(lower);
-					if (hasTexture && hasLight) {
-						aiScore = Math.max(aiScore, 88);
-					}
-				}
 				const feedback = generateFeedback(prompt, feedbackTarget);
 				try {
 					// eslint-disable-next-line no-console
@@ -193,10 +184,17 @@ export async function POST(req: NextRequest) {
 					// eslint-disable-next-line no-console
 					console.log('FEEDBACK OUTPUT:', feedback.note);
 				} catch {}
-				// Calculate bonus for response (precision bonus for daily/expert)
-				const responseBonus = (isDailyChallenge || currentTier === 'expert')
-					? ((prompt.includes('--no') || prompt.includes('--ar')) ? 8 : 0)
-					: 0;
+				// Calculate bonus for response (sum of all bonuses applied)
+				let responseBonus = 0;
+				if (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert') {
+					const hasTexture = /shiny|fuzzy|matte|glossy|rough|smooth|metal|glass/i.test(prompt);
+					const hasLight = /shadow|light|glowing|backlit|warm|cool|volumetric|cinematic/i.test(prompt);
+					if (hasTexture) responseBonus += 8;
+					if (hasLight) responseBonus += 7;
+					if (prompt.includes('--no')) responseBonus += 6;
+					if (prompt.includes('--ar')) responseBonus += 4;
+					if (/masterpiece|ultra-detailed|highly detailed/i.test(prompt)) responseBonus += 5;
+				}
 				return NextResponse.json(
 					{
 						aiScore,
@@ -217,8 +215,8 @@ export async function POST(req: NextRequest) {
 			const simJ = jaccardSimilarity(prompt, fallbackDescription);
 			let aiScore: number;
 			const currentTier = targetMeta?.tier ?? tier;
-			// Daily/Expert tier: use strict scoring with wider range and harsh penalties
-			if (isDailyChallenge || currentTier === 'expert') {
+			// Medium/Hard/Advanced/Expert/Daily tier: use balanced scoring
+			if (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert') {
 				aiScore = computeDailyExpertScore(simJ, prompt, fallbackDescription);
 			}
 			else if (targetMeta?.tier === 'easy') {
@@ -269,15 +267,6 @@ export async function POST(req: NextRequest) {
 				const bonus = heuristicPromptBonus(prompt);
 				aiScore = computeFinalScore(simJ, bonus);
 			}
-			// Medium-tier rule: reward explicit texture + light with brevity
-			if ((targetMeta?.tier ?? tier) === 'medium') {
-				const lower = String(prompt || '').toLowerCase();
-				const hasTexture = /shiny|matte|fuzzy|rough|smooth|glossy/.test(lower);
-				const hasLight = /shadow|light|glowing|backlit|warm|cool|glow/.test(lower);
-				if (hasTexture && hasLight) {
-					aiScore = Math.max(aiScore, 88);
-				}
-			}
 			const feedback = generateFeedback(prompt, feedbackTarget);
 			try {
 				// eslint-disable-next-line no-console
@@ -286,9 +275,20 @@ export async function POST(req: NextRequest) {
 				console.log('FEEDBACK OUTPUT:', feedback.note);
 			} catch {}
 			// Calculate bonus for response
-			const responseBonus = (isDailyChallenge || currentTier === 'expert')
-				? ((prompt.includes('--no') || prompt.includes('--ar')) ? 8 : 0)
-				: (targetMeta?.tier === 'easy' ? 0 : heuristicPromptBonus(prompt));
+			let responseBonus = 0;
+			if (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert') {
+				const hasTexture = /shiny|fuzzy|matte|glossy|rough|smooth|metal|glass/i.test(prompt);
+				const hasLight = /shadow|light|glowing|backlit|warm|cool|volumetric|cinematic/i.test(prompt);
+				if (hasTexture) responseBonus += 8;
+				if (hasLight) responseBonus += 7;
+				if (prompt.includes('--no')) responseBonus += 6;
+				if (prompt.includes('--ar')) responseBonus += 4;
+				if (/masterpiece|ultra-detailed|highly detailed/i.test(prompt)) responseBonus += 5;
+			} else if (targetMeta?.tier === 'easy') {
+				responseBonus = 0;
+			} else {
+				responseBonus = heuristicPromptBonus(prompt);
+			}
 			return NextResponse.json(
 				{
 					aiScore,
@@ -313,8 +313,8 @@ export async function POST(req: NextRequest) {
 
 		let aiScore: number;
 		const currentTier = targetMeta?.tier ?? tier;
-		// Daily/Expert tier: use strict scoring with wider range and harsh penalties
-		if (isDailyChallenge || currentTier === 'expert') {
+		// Medium/Hard/Advanced/Expert/Daily tier: use balanced scoring
+		if (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert') {
 			aiScore = computeDailyExpertScore(similarity01, prompt, fallbackDescription);
 		}
 		else if (targetMeta?.tier === 'easy') {
@@ -364,15 +364,6 @@ export async function POST(req: NextRequest) {
 		} else {
 			const bonus = heuristicPromptBonus(prompt);
 			aiScore = computeFinalScore(similarity01, bonus);
-		}
-		// Medium-tier rule: reward explicit texture + light with brevity
-		if ((targetMeta?.tier ?? tier) === 'medium') {
-			const lower = String(prompt || '').toLowerCase();
-			const hasTexture = /shiny|matte|fuzzy|rough|smooth|glossy/.test(lower);
-			const hasLight = /shadow|light|glowing|backlit|warm|cool|glow/.test(lower);
-			if (hasTexture && hasLight) {
-				aiScore = Math.max(aiScore, 88);
-			}
 		}
 		const feedback = generateFeedback(prompt, feedbackTarget);
 		try {
