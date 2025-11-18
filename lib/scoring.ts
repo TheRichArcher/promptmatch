@@ -61,4 +61,37 @@ export function computeFinalScore(similarity01: number, heuristicBonus: number):
 	return Math.max(0, Math.min(100, base + heuristicBonus));
 }
 
+/**
+ * Strict scoring for daily/expert tiers with wider range and harsh penalties
+ * Base similarity pushed to 0-120 range, then penalties and bonuses applied
+ */
+export function computeDailyExpertScore(
+	similarity01: number,
+	prompt: string,
+	targetDescription: string,
+): number {
+	// 1. Base similarity is too forgiving — tighten the curve
+	let base = similarity01 * 120; // push to 0–120 range
+
+	// 2. Harsh penalty for missing key elements
+	const targetLower = targetDescription.toLowerCase();
+	const promptLower = prompt.toLowerCase();
+	
+	const missing = [
+		// Check for rain/wet in target, penalize if missing in prompt
+		(targetLower.match(/rain|wet/i) && !promptLower.match(/rain|wet/i)) ? -20 : 0,
+		// Check for umbrella in target, penalize if missing in prompt
+		(targetLower.match(/umbrella/i) && !promptLower.match(/umbrella/i)) ? -15 : 0,
+		// Check for night/dark in target, penalize if missing in prompt
+		(targetLower.match(/night|dark/i) && !promptLower.match(/night|dark/i)) ? -10 : 0,
+		// Discourage lazy prompts (too short)
+		prompt.split(' ').length < 8 ? -5 : 0,
+	].reduce((a, b) => a + b, 0);
+
+	// 3. Bonus only for excellence
+	const bonus = (prompt.includes('--no') || prompt.includes('--ar')) ? 8 : 0;
+
+	return Math.max(0, Math.min(100, Math.round(base + missing + bonus)));
+}
+
 

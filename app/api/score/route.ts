@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { computeFinalScore, heuristicPromptBonus, jaccardSimilarity } from '@/lib/scoring';
+import { computeFinalScore, computeDailyExpertScore, heuristicPromptBonus, jaccardSimilarity } from '@/lib/scoring';
 import { embedImagesBase64, initTargetEmbeddings, dataUrlApproxBytes, cosineSimilarity } from '@/lib/vertex';
 import { generateFeedback } from '@/lib/feedbackEngine';
 import { unsealGoldPrompt } from '@/lib/secureText';
@@ -123,8 +123,15 @@ export async function POST(req: NextRequest) {
 				let aiScore = Math.round(similarity01 * 100);
 				// eslint-disable-next-line no-console
 				console.log('[score] Image similarity:', similarity01, '→ score:', aiScore);
+				
+				// Daily/Expert tier: use strict scoring with wider range and harsh penalties
+				const currentTier = targetMeta?.tier ?? tier;
+				if (isDailyChallenge || currentTier === 'expert') {
+					const targetDesc = targetMeta?.goldPrompt || targetDescription || targetMeta?.label || '';
+					aiScore = computeDailyExpertScore(similarity01, prompt, targetDesc);
+				}
 				// Easy tier: rely on model similarity; apply only small optional boosts and capped penalty. No handcrafted strict rules.
-				if (targetMeta?.tier === 'easy') {
+				else if (targetMeta?.tier === 'easy') {
 					const lowerPrompt = String(prompt || '').toLowerCase();
 					const lowerLabel = String(targetMeta?.label || '').toLowerCase();
 					// Color detection
@@ -186,11 +193,15 @@ export async function POST(req: NextRequest) {
 					// eslint-disable-next-line no-console
 					console.log('FEEDBACK OUTPUT:', feedback.note);
 				} catch {}
+				// Calculate bonus for response (precision bonus for daily/expert)
+				const responseBonus = (isDailyChallenge || currentTier === 'expert')
+					? ((prompt.includes('--no') || prompt.includes('--ar')) ? 8 : 0)
+					: 0;
 				return NextResponse.json(
 					{
 						aiScore,
 						similarity01,
-						bonus: 0,
+						bonus: responseBonus,
 						feedback,
 						suggestion: feedback?.note || null,
 						scoringMode: 'image-embedding',
@@ -205,7 +216,12 @@ export async function POST(req: NextRequest) {
 			const fallbackDescription = targetDescription || targetMeta?.goldPrompt || targetMeta?.label || '';
 			const simJ = jaccardSimilarity(prompt, fallbackDescription);
 			let aiScore: number;
-			if (targetMeta?.tier === 'easy') {
+			const currentTier = targetMeta?.tier ?? tier;
+			// Daily/Expert tier: use strict scoring with wider range and harsh penalties
+			if (isDailyChallenge || currentTier === 'expert') {
+				aiScore = computeDailyExpertScore(simJ, prompt, fallbackDescription);
+			}
+			else if (targetMeta?.tier === 'easy') {
 				// Easy tier: no handcrafted keyword bonuses; small optional boosts; capped penalty
 				const similarity01Easy = simJ; // fallback similarity
 				const lowerPrompt = String(prompt || '').toLowerCase();
@@ -269,11 +285,15 @@ export async function POST(req: NextRequest) {
 				// eslint-disable-next-line no-console
 				console.log('FEEDBACK OUTPUT:', feedback.note);
 			} catch {}
+			// Calculate bonus for response
+			const responseBonus = (isDailyChallenge || currentTier === 'expert')
+				? ((prompt.includes('--no') || prompt.includes('--ar')) ? 8 : 0)
+				: (targetMeta?.tier === 'easy' ? 0 : heuristicPromptBonus(prompt));
 			return NextResponse.json(
 				{
 					aiScore,
 					similarity01: simJ,
-					bonus: targetMeta?.tier === 'easy' ? 0 : heuristicPromptBonus(prompt),
+					bonus: responseBonus,
 					feedback,
 					suggestion: feedback?.note || null,
 					scoringMode: process.env.NODE_ENV !== 'production' ? 'jaccard-fallback' : undefined,
@@ -284,15 +304,20 @@ export async function POST(req: NextRequest) {
 		}
 
 		// Fallback similarity if embeddings unavailable
+		const fallbackDescription = targetDescription || targetMeta?.goldPrompt || targetMeta?.label || '';
 		if (similarity01 === null) {
 			// Use targetMeta label/goldPrompt as fallback description for daily challenges
-			const fallbackDescription = targetDescription || targetMeta?.goldPrompt || targetMeta?.label || '';
 			similarity01 = jaccardSimilarity(prompt, fallbackDescription);
 			scoringMode = 'jaccard-fallback';
 		}
 
 		let aiScore: number;
-		if (targetMeta?.tier === 'easy') {
+		const currentTier = targetMeta?.tier ?? tier;
+		// Daily/Expert tier: use strict scoring with wider range and harsh penalties
+		if (isDailyChallenge || currentTier === 'expert') {
+			aiScore = computeDailyExpertScore(similarity01, prompt, fallbackDescription);
+		}
+		else if (targetMeta?.tier === 'easy') {
 			// Easy tier: rely on similarity; small optional boosts; capped penalty; no heuristic bonus
 			const lowerPrompt = String(prompt || '').toLowerCase();
 			const lowerLabel = String(
@@ -357,11 +382,16 @@ export async function POST(req: NextRequest) {
 			console.log('FEEDBACK OUTPUT:', feedback.note);
 		} catch {}
 
+		// Calculate bonus for response
+		const responseBonus = (isDailyChallenge || currentTier === 'expert')
+			? ((prompt.includes('--no') || prompt.includes('--ar')) ? 8 : 0)
+			: (targetMeta?.tier === 'easy' ? 0 : heuristicPromptBonus(prompt));
+
 		return NextResponse.json(
 			{
 				aiScore,
 				similarity01,
-				bonus: targetMeta?.tier === 'easy' ? 0 : heuristicPromptBonus(prompt),
+				bonus: responseBonus,
 				feedback,
 				suggestion: feedback?.note || null,
 				scoringMode: scoringMode === 'jaccard-fallback' && process.env.NODE_ENV === 'production' ? undefined : scoringMode,
