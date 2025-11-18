@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { computeFinalScore, computeDailyExpertScore, heuristicPromptBonus, jaccardSimilarity } from '@/lib/scoring';
+import { computeFinalScore, computeDailyExpertScore, calculateAdvancedBonus, heuristicPromptBonus, jaccardSimilarity } from '@/lib/scoring';
 import { embedImagesBase64, initTargetEmbeddings, dataUrlApproxBytes, cosineSimilarity } from '@/lib/vertex';
 import { generateFeedback } from '@/lib/feedbackEngine';
 import { unsealGoldPrompt } from '@/lib/secureText';
@@ -127,8 +127,7 @@ export async function POST(req: NextRequest) {
 				// Medium/Hard/Advanced/Expert/Daily tier: use balanced scoring
 				const currentTier = targetMeta?.tier ?? tier;
 				if (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert') {
-					const targetDesc = targetMeta?.goldPrompt || targetDescription || targetMeta?.label || '';
-					aiScore = computeDailyExpertScore(similarity01, prompt, targetDesc);
+					aiScore = computeDailyExpertScore(similarity01, prompt);
 				}
 				// Easy tier: rely on model similarity; apply only small optional boosts and capped penalty. No handcrafted strict rules.
 				else if (targetMeta?.tier === 'easy') {
@@ -184,17 +183,10 @@ export async function POST(req: NextRequest) {
 					// eslint-disable-next-line no-console
 					console.log('FEEDBACK OUTPUT:', feedback.note);
 				} catch {}
-				// Calculate bonus for response (sum of all bonuses applied)
-				let responseBonus = 0;
-				if (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert') {
-					const hasTexture = /shiny|fuzzy|matte|glossy|rough|smooth|metal|glass/i.test(prompt);
-					const hasLight = /shadow|light|glowing|backlit|warm|cool|volumetric|cinematic/i.test(prompt);
-					if (hasTexture) responseBonus += 8;
-					if (hasLight) responseBonus += 7;
-					if (prompt.includes('--no')) responseBonus += 6;
-					if (prompt.includes('--ar')) responseBonus += 4;
-					if (/masterpiece|ultra-detailed|highly detailed/i.test(prompt)) responseBonus += 5;
-				}
+				// Calculate bonus for response
+				const responseBonus = (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert')
+					? calculateAdvancedBonus(prompt)
+					: 0;
 				return NextResponse.json(
 					{
 						aiScore,
@@ -217,7 +209,7 @@ export async function POST(req: NextRequest) {
 			const currentTier = targetMeta?.tier ?? tier;
 			// Medium/Hard/Advanced/Expert/Daily tier: use balanced scoring
 			if (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert') {
-				aiScore = computeDailyExpertScore(simJ, prompt, fallbackDescription);
+				aiScore = computeDailyExpertScore(simJ, prompt);
 			}
 			else if (targetMeta?.tier === 'easy') {
 				// Easy tier: no handcrafted keyword bonuses; small optional boosts; capped penalty
@@ -275,20 +267,9 @@ export async function POST(req: NextRequest) {
 				console.log('FEEDBACK OUTPUT:', feedback.note);
 			} catch {}
 			// Calculate bonus for response
-			let responseBonus = 0;
-			if (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert') {
-				const hasTexture = /shiny|fuzzy|matte|glossy|rough|smooth|metal|glass/i.test(prompt);
-				const hasLight = /shadow|light|glowing|backlit|warm|cool|volumetric|cinematic/i.test(prompt);
-				if (hasTexture) responseBonus += 8;
-				if (hasLight) responseBonus += 7;
-				if (prompt.includes('--no')) responseBonus += 6;
-				if (prompt.includes('--ar')) responseBonus += 4;
-				if (/masterpiece|ultra-detailed|highly detailed/i.test(prompt)) responseBonus += 5;
-			} else if (targetMeta?.tier === 'easy') {
-				responseBonus = 0;
-			} else {
-				responseBonus = heuristicPromptBonus(prompt);
-			}
+			const responseBonus = (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert')
+				? calculateAdvancedBonus(prompt)
+				: (targetMeta?.tier === 'easy' ? 0 : heuristicPromptBonus(prompt));
 			return NextResponse.json(
 				{
 					aiScore,
@@ -315,7 +296,7 @@ export async function POST(req: NextRequest) {
 		const currentTier = targetMeta?.tier ?? tier;
 		// Medium/Hard/Advanced/Expert/Daily tier: use balanced scoring
 		if (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert') {
-			aiScore = computeDailyExpertScore(similarity01, prompt, fallbackDescription);
+			aiScore = computeDailyExpertScore(similarity01, prompt);
 		}
 		else if (targetMeta?.tier === 'easy') {
 			// Easy tier: rely on similarity; small optional boosts; capped penalty; no heuristic bonus
@@ -374,8 +355,8 @@ export async function POST(req: NextRequest) {
 		} catch {}
 
 		// Calculate bonus for response
-		const responseBonus = (isDailyChallenge || currentTier === 'expert')
-			? ((prompt.includes('--no') || prompt.includes('--ar')) ? 8 : 0)
+		const responseBonus = (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert')
+			? calculateAdvancedBonus(prompt)
 			: (targetMeta?.tier === 'easy' ? 0 : heuristicPromptBonus(prompt));
 
 		return NextResponse.json(

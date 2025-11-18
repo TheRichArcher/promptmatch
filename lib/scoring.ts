@@ -62,29 +62,41 @@ export function computeFinalScore(similarity01: number, heuristicBonus: number):
 }
 
 /**
+ * Calculate bonus points for advanced tier prompts
+ * Returns total bonus (0-30 max: texture + light + precision + quality)
+ */
+export function calculateAdvancedBonus(prompt: string): number {
+	let bonus = 0;
+	
+	// Texture + light = +15 max
+	const hasTexture = /shiny|fuzzy|matte|glossy|rough|smooth|metal|glass/i.test(prompt);
+	const hasLight = /shadow|light|glowing|backlit|warm|cool|volumetric|cinematic/i.test(prompt);
+	if (hasTexture) bonus += 8;
+	if (hasLight) bonus += 7;
+
+	// Precision tools = +10 max
+	if (prompt.includes('--no')) bonus += 6;
+	if (prompt.includes('--ar')) bonus += 4;
+
+	// Quality boosters = +5
+	if (/masterpiece|ultra-detailed|highly detailed/i.test(prompt)) bonus += 5;
+
+	return bonus;
+}
+
+/**
  * Balanced scoring for medium/hard/advanced/expert/daily tiers
  * Base similarity (0-100) with progressive bonuses and penalties
  */
 export function computeDailyExpertScore(
 	similarity01: number,
 	prompt: string,
-	targetDescription: string,
 ): number {
 	// Base similarity (0–100)
 	let score = similarity01 * 100;
 
-	// Texture + light = +15 max
-	const hasTexture = /shiny|fuzzy|matte|glossy|rough|smooth|metal|glass/i.test(prompt);
-	const hasLight = /shadow|light|glowing|backlit|warm|cool|volumetric|cinematic/i.test(prompt);
-	if (hasTexture) score += 8;
-	if (hasLight) score += 7;
-
-	// Precision tools = +10 max
-	if (prompt.includes('--no')) score += 6;
-	if (prompt.includes('--ar')) score += 4;
-
-	// Quality boosters = +5
-	if (/masterpiece|ultra-detailed|highly detailed/i.test(prompt)) score += 5;
+	// Add bonuses
+	score += calculateAdvancedBonus(prompt);
 
 	// Penalty for lazy prompts
 	if (prompt.split(' ').length < 6) score -= 10;
