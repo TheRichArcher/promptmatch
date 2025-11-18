@@ -12,6 +12,7 @@ export default function DailyChallenge() {
 	const [score, setScore] = useState<number | null>(null);
 	const [rank, setRank] = useState<number | null>(null);
 	const [submitted, setSubmitted] = useState(false);
+	const [showHowToPlay, setShowHowToPlay] = useState(false);
 
 	useEffect(() => {
 		fetch('/api/daily')
@@ -96,7 +97,7 @@ export default function DailyChallenge() {
 	const handleShare = async () => {
 		if (score === null || !data) return;
 
-		const shareText = `I scored ${score} on PromptMatch Daily #${data.day} 🔥\nBeat me → promptmatch.onrender.com/daily`;
+		const shareText = `I scored ${score} on PromptMatch Daily #${data.day}\nBeat my prompt → promptmatch.onrender.com/daily`;
 
 		try {
 			await navigator.clipboard.writeText(shareText);
@@ -122,12 +123,38 @@ export default function DailyChallenge() {
 			<div className="max-w-5xl mx-auto">
 				{/* Header */}
 				<div className="text-center mb-8">
-					<h1 className="text-5xl font-bold text-gray-900 mb-3">PromptMatch Daily</h1>
+					<div className="flex items-center justify-center gap-4 mb-3">
+						<h1 className="text-5xl font-bold text-gray-900">PromptMatch Daily</h1>
+						<button
+							onClick={() => setShowHowToPlay(true)}
+							className="text-sm text-gray-500 hover:text-gray-700 underline"
+						>
+							How to play
+						</button>
+					</div>
 					<p className="text-xl text-gray-600 mb-2">One prompt. Best score wins.</p>
 					<div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm border border-gray-200">
 						<span className="text-sm font-semibold text-gray-700">Day {data.day}</span>
 					</div>
 				</div>
+
+				{/* How to Play Modal */}
+				{showHowToPlay && (
+					<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowHowToPlay(false)}>
+						<div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+							<h2 className="text-2xl font-bold mb-4">How to Play</h2>
+							<p className="text-gray-700 mb-6">
+								Describe the target image with a prompt. Your prompt generates an image, and you get a score (0-100) based on how well it matches the target. One attempt per day — highest score wins!
+							</p>
+							<button
+								onClick={() => setShowHowToPlay(false)}
+								className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg"
+							>
+								Got it
+							</button>
+						</div>
+					</div>
+				)}
 
 				{/* Main Card */}
 				<div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-gray-100">
@@ -184,13 +211,13 @@ export default function DailyChallenge() {
 
 					{/* Score Display */}
 					{score !== null && (
-						<div className="mb-6 p-6 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-xl">
+						<div className="mb-6 p-8 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-xl">
 							<div className="text-center">
-								<p className="text-3xl font-bold text-gray-900 mb-2">
+								<p className="text-4xl font-bold text-gray-900 mb-3">
 									Your score: {score}/100 🔥
 								</p>
 								{rank !== null && (
-									<p className="text-lg text-gray-700 mb-4">
+									<p className="text-xl text-gray-700 mb-6">
 										You're #{rank} today — beat tomorrow!
 									</p>
 								)}
@@ -223,7 +250,11 @@ export default function DailyChallenge() {
 						<button
 							onClick={handleSubmit}
 							disabled={generating || !prompt.trim() || submitted}
-							className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-semibold py-4 px-8 rounded-xl text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2"
+							className={`w-full text-white font-semibold py-4 px-8 rounded-xl text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 ${
+								submitted
+									? 'bg-gray-400 cursor-not-allowed'
+									: 'bg-[#8b5cf6] hover:bg-[#7c3aed] disabled:bg-gray-300 disabled:cursor-not-allowed'
+							}`}
 						>
 							{generating ? (
 								<>
