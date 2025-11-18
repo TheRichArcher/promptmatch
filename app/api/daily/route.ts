@@ -108,7 +108,15 @@ export async function GET() {
 		const day = Math.floor((new Date(today).getTime() - new Date('2025-11-17').getTime()) / 86400000) + 1;
 		const prompt = DAILY_TARGETS[day - 1] || DAILY_TARGETS[0];
 
+		if (!prompt) {
+			return NextResponse.json({ error: 'No prompt found for today' }, { status: 500 });
+		}
+
 		const imageUrl = await generateImage(prompt, today);
+
+		if (!imageUrl?.imageUrl) {
+			return NextResponse.json({ error: 'Failed to generate target image' }, { status: 502 });
+		}
 
 		return NextResponse.json({
 			day,
@@ -117,7 +125,11 @@ export async function GET() {
 		});
 	} catch (err: any) {
 		console.error('[daily] Error:', err?.message ?? err);
-		return NextResponse.json({ error: 'Internal error', details: String(err) }, { status: 500 });
+		const status = err?.message?.includes('timeout') || err?.message?.includes('Failed to generate') ? 502 : 500;
+		return NextResponse.json({ 
+			error: 'Internal error', 
+			details: process.env.NODE_ENV === 'development' ? String(err) : undefined 
+		}, { status });
 	}
 }
 
