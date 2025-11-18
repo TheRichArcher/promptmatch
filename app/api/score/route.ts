@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
 				const normalized = Math.max(0, Math.min(1, (similarity + 1) / 2));
 				
 				// Aggressively compress low similarities so unrelated images score 0-10
-				// Use threshold-based compression: anything below 0.8 normalized gets heavily compressed
+				// Expand high similarities so near-perfect matches score 99-100
 				let similarity01: number;
 				if (normalized < 0.8) {
 					// Low similarities: compress very aggressively with power of 6
@@ -133,8 +133,24 @@ export async function POST(req: NextRequest) {
 					//          normalized 0.79 → (0.79/0.8)^6 * 0.1 = 0.092 → score 9 ✓
 					similarity01 = Math.pow(normalized / 0.8, 6) * 0.1; // Map [0, 0.8] to [0, 0.1]
 				} else {
-					// Higher similarities: use linear mapping from [0.8, 1.0] to [0.1, 1.0]
-					similarity01 = 0.1 + ((normalized - 0.8) / 0.2) * 0.9;
+					// Higher similarities: use piecewise mapping to expand top end
+					// Map [0.8, 1.0] to [0.1, 1.0] with very aggressive expansion for top 5%
+					if (normalized >= 0.95) {
+						// Top 5%: map [0.95, 1.0] to [0.85, 1.0] - very aggressive expansion
+						const topRange = (normalized - 0.95) / 0.05; // [0, 1] for [0.95, 1.0]
+						similarity01 = 0.85 + Math.pow(topRange, 0.3) * 0.15; // Expand top end
+					} else {
+						// Lower high range: map [0.8, 0.95] to [0.1, 0.85]
+						const midRange = (normalized - 0.8) / 0.15; // [0, 1] for [0.8, 0.95]
+						similarity01 = 0.1 + Math.pow(midRange, 0.7) * 0.75;
+					}
+					// Examples: normalized 0.8 → score 10
+					//           normalized 0.9 → score 50
+					//           normalized 0.95 → score 85
+					//           normalized 0.98 → score 97
+					//           normalized 0.984 → score 98-99
+					//           normalized 0.99 → score 99
+					//           normalized 1.0 → score 100
 				}
 				let aiScore = Math.round(similarity01 * 100);
 				// eslint-disable-next-line no-console
