@@ -68,22 +68,36 @@ export default function DailyChallenge() {
 	if (!data || data.error) return <div className="text-center p-8">Error loading challenge</div>;
 
 	return (
-		<div className="max-w-2xl mx-auto pt-10 px-6">
+		<div className="max-w-4xl mx-auto pt-10 px-6">
 			<h1 className="text-4xl font-bold text-center mb-4">PromptMatch Daily</h1>
 			<p className="text-center text-xl mb-8">One prompt. Best score wins.</p>
 			<div className="bg-gray-900 rounded-xl p-8">
-				<div className="text-center mb-4 text-white">Day {data.day}</div>
-				<img src={data.targetImage} className="w-full rounded-lg" alt="Daily challenge target" />
+				<div className="text-center mb-6 text-white">Day {data.day}</div>
 				
-				{generatedImage && (
-					<div className="mt-6">
-						<p className="text-white text-sm mb-2">Your generated image:</p>
-						<img src={generatedImage} className="w-full rounded-lg" alt="Generated from your prompt" />
+				{/* Side by side images */}
+				<div className="grid grid-cols-1 gap-6 md:grid-cols-2 mb-6">
+					<div>
+						<p className="text-white text-sm font-semibold mb-2">Target Image</p>
+						<div className="rounded-lg shadow overflow-hidden bg-white">
+							<img src={data.targetImage} className="w-full rounded-lg" alt="Daily challenge target" />
+						</div>
 					</div>
-				)}
+					<div>
+						<p className="text-white text-sm font-semibold mb-2">Your Image</p>
+						<div className="rounded-lg shadow overflow-hidden bg-white">
+							{generatedImage ? (
+								<img src={generatedImage} className="w-full rounded-lg" alt="Generated from your prompt" />
+							) : (
+								<div className="w-full h-64 flex items-center justify-center bg-gray-100 text-gray-400">
+									<p className="text-sm">Your generated image will appear here</p>
+								</div>
+							)}
+						</div>
+					</div>
+				</div>
 
 				{error && (
-					<div className="mt-6 p-4 bg-red-900/50 text-red-200 rounded-lg">
+					<div className="mb-6 p-4 bg-red-900/50 text-red-200 rounded-lg">
 						{error}
 					</div>
 				)}
