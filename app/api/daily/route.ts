@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { generateAndCacheImage } from '@/lib/gemini';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 const DAILY_PROMPTS = [
 	// Day 1 – Nov 17
