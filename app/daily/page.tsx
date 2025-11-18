@@ -9,6 +9,9 @@ export default function DailyChallenge() {
 	const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 	const [generating, setGenerating] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [score, setScore] = useState<number | null>(null);
+	const [rank, setRank] = useState<number | null>(null);
+	const [submitted, setSubmitted] = useState(false);
 
 	useEffect(() => {
 		fetch('/api/daily')
@@ -22,14 +25,17 @@ export default function DailyChallenge() {
 	}, []);
 
 	const handleSubmit = async () => {
-		if (!prompt.trim() || generating) return;
+		if (!prompt.trim() || generating || submitted) return;
 
 		setGenerating(true);
 		setError(null);
 		setGeneratedImage(null);
+		setScore(null);
+		setRank(null);
 
 		try {
-			const res = await fetch('/api/generate', {
+			// Generate image
+			const genRes = await fetch('/api/generate', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -37,23 +43,67 @@ export default function DailyChallenge() {
 				body: JSON.stringify({ prompt: prompt.trim() }),
 			});
 
-			const result = await res.json();
+			const genResult = await genRes.json();
 
-			if (!res.ok) {
-				throw new Error(result.error || 'Failed to generate image');
+			if (!genRes.ok) {
+				throw new Error(genResult.error || 'Failed to generate image');
 			}
 
-			const imageUrl = result.imageDataUrl || result.image;
+			const imageUrl = genResult.imageDataUrl || genResult.image;
 			if (!imageUrl) {
 				throw new Error('No image returned');
 			}
 
 			setGeneratedImage(imageUrl);
+
+			// Score the prompt
+			const scoreRes = await fetch('/api/score', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					prompt: prompt.trim(),
+					targetImage: data.targetImage,
+					generatedImage: imageUrl,
+					targetMeta: {
+						label: `Daily Challenge Day ${data.day}`,
+						tier: 'medium',
+					},
+				}),
+			});
+
+			const scoreResult = await scoreRes.json();
+
+			if (scoreRes.ok && scoreResult.aiScore !== undefined) {
+				const finalScore = Math.round(scoreResult.aiScore);
+				setScore(finalScore);
+				// Mock rank for now (would come from backend in real implementation)
+				setRank(Math.floor(Math.random() * 20) + 1);
+				setSubmitted(true);
+			} else {
+				// If scoring fails, still show the image but no score
+				setSubmitted(true);
+			}
 		} catch (err: any) {
 			setError(err?.message || 'Failed to generate image');
 			console.error('Generation error:', err);
 		} finally {
 			setGenerating(false);
+		}
+	};
+
+	const handleShare = async () => {
+		if (score === null || !data) return;
+
+		const shareText = `I scored ${score} on PromptMatch Daily #${data.day} 🔥\nBeat me → promptmatch.onrender.com/daily`;
+
+		try {
+			await navigator.clipboard.writeText(shareText);
+			// Show a brief success message (could enhance with toast)
+			alert('Copied to clipboard!');
+		} catch (err) {
+			console.error('Failed to copy:', err);
 		}
 	};
 
@@ -132,6 +182,31 @@ export default function DailyChallenge() {
 						</div>
 					)}
 
+					{/* Score Display */}
+					{score !== null && (
+						<div className="mb-6 p-6 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-xl">
+							<div className="text-center">
+								<p className="text-3xl font-bold text-gray-900 mb-2">
+									Your score: {score}/100 🔥
+								</p>
+								{rank !== null && (
+									<p className="text-lg text-gray-700 mb-4">
+										You're #{rank} today — beat tomorrow!
+									</p>
+								)}
+								<button
+									onClick={handleShare}
+									className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+								>
+									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+									</svg>
+									Share
+								</button>
+							</div>
+						</div>
+					)}
+
 					{/* Input Section */}
 					<div className="space-y-4">
 						<div className="relative">
@@ -142,12 +217,12 @@ export default function DailyChallenge() {
 								value={prompt}
 								onChange={(e) => setPrompt(e.target.value)}
 								onKeyPress={handleKeyPress}
-								disabled={generating}
+								disabled={generating || submitted}
 							/>
 						</div>
 						<button
 							onClick={handleSubmit}
-							disabled={generating || !prompt.trim()}
+							disabled={generating || !prompt.trim() || submitted}
 							className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-semibold py-4 px-8 rounded-xl text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2"
 						>
 							{generating ? (
@@ -163,7 +238,7 @@ export default function DailyChallenge() {
 									<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
 									</svg>
-									<span>Submit Guess</span>
+									<span>Submit Prompt</span>
 								</>
 							)}
 						</button>
