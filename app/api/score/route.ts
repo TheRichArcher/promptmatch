@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { computeFinalScore, computeDailyExpertScore, calculateAdvancedBonus, heuristicPromptBonus, jaccardSimilarity } from '@/lib/scoring';
+import { computeFinalScore, computeDailyExpertScore, heuristicPromptBonus, jaccardSimilarity } from '@/lib/scoring';
 import { embedImagesBase64, initTargetEmbeddings, dataUrlApproxBytes, cosineSimilarity } from '@/lib/vertex';
 import { generateFeedback } from '@/lib/feedbackEngine';
 import { unsealGoldPrompt } from '@/lib/secureText';
@@ -119,7 +119,11 @@ export async function POST(req: NextRequest) {
 			if (vectors.length === 2 && vectors[0].length > 0) {
 				const [v1, v2] = vectors;
 				const similarity = cosineSimilarity(v1, v2);
-				const similarity01 = Math.max(0, Math.min(1, (similarity + 1) / 2));
+				// Normalize cosine similarity [-1, 1] to [0, 1]
+				// Compress low similarities aggressively so unrelated images score 0-10
+				// Power curve: similarity^2 compresses low values significantly
+				const normalized = Math.max(0, Math.min(1, (similarity + 1) / 2));
+				const similarity01 = Math.pow(normalized, 2); // Aggressive compression for low similarities
 				let aiScore = Math.round(similarity01 * 100);
 				// eslint-disable-next-line no-console
 				console.log('[score] Image similarity:', similarity01, '→ score:', aiScore);
@@ -183,10 +187,8 @@ export async function POST(req: NextRequest) {
 					// eslint-disable-next-line no-console
 					console.log('FEEDBACK OUTPUT:', feedback.note);
 				} catch {}
-				// Calculate bonus for response
-				const responseBonus = (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert')
-					? calculateAdvancedBonus(prompt)
-					: 0;
+				// No manual bonuses for advanced tiers - let AI embeddings judge
+				const responseBonus = 0;
 				return NextResponse.json(
 					{
 						aiScore,
@@ -268,7 +270,7 @@ export async function POST(req: NextRequest) {
 			} catch {}
 			// Calculate bonus for response
 			const responseBonus = (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert')
-				? calculateAdvancedBonus(prompt)
+				? 0  // No manual bonuses - let AI embeddings judge
 				: (targetMeta?.tier === 'easy' ? 0 : heuristicPromptBonus(prompt));
 			return NextResponse.json(
 				{
@@ -356,7 +358,7 @@ export async function POST(req: NextRequest) {
 
 		// Calculate bonus for response
 		const responseBonus = (isDailyChallenge || currentTier === 'medium' || currentTier === 'hard' || currentTier === 'advanced' || currentTier === 'expert')
-			? calculateAdvancedBonus(prompt)
+			? 0  // No manual bonuses - let AI embeddings judge
 			: (targetMeta?.tier === 'easy' ? 0 : heuristicPromptBonus(prompt));
 
 		return NextResponse.json(
