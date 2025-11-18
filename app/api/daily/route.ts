@@ -4,12 +4,12 @@ import { generateAndCacheImage } from '@/lib/gemini';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const DAILY_PROMPTS = [
+const DAILY_TARGETS = [
 	// Day 1 – Nov 17
-	'majestic white dragon soaring through golden hour clouds, backlit sun rays piercing through mist, volumetric lighting, epic fantasy, ultra-detailed, --ar 16:9',
+	'majestic white dragon soaring through golden hour clouds, backlit sun rays, volumetric lighting, epic fantasy, ultra-detailed, masterpiece, --ar 16:9',
 
 	// Day 2 – Nov 18
-	'close-up portrait of woman under umbrella in heavy rain at night, neon reflections on wet street, 85mm lens, cinematic lighting, shallow depth of field, --no blur --no watermark, masterpiece, --ar 9:16',
+	'close-up portrait of woman under umbrella in heavy rain at night, neon reflections, 85mm lens, cinematic, --no blur, masterpiece, --ar 9:16',
 
 	// Day 3 – Nov 19
 	'vintage red Cadillac parked at neon-lit diner at dusk, 35mm film, moody color grading, retro aesthetic, --no people --no modern cars, highly detailed, --ar 16:9',
@@ -97,19 +97,22 @@ const DAILY_PROMPTS = [
 ];
 
 
+async function generateImage(prompt: string, cacheKey: string) {
+	const imageUrl = await generateAndCacheImage(prompt, cacheKey);
+	return { imageUrl };
+}
+
 export async function GET() {
 	try {
-		const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-		const launchDate = '2025-11-17';
-		const dayNumber = Math.floor((new Date(today).getTime() - new Date(launchDate).getTime()) / 86400000) + 1;
-		const prompt = DAILY_PROMPTS[dayNumber - 1] || DAILY_PROMPTS[0];
+		const today = new Date().toISOString().slice(0, 10);
+		const day = Math.floor((new Date(today).getTime() - new Date('2025-11-17').getTime()) / 86400000) + 1;
+		const prompt = DAILY_TARGETS[day - 1] || DAILY_TARGETS[0];
 
-		const imageUrl = await generateAndCacheImage(prompt, today);
+		const imageUrl = await generateImage(prompt, today);
 
 		return NextResponse.json({
-			day: dayNumber,
-			targetImage: imageUrl,
-			guessesLeft: 6,
+			day,
+			targetImage: imageUrl.imageUrl,
 			shareUrl: 'https://promptmatch.onrender.com/daily',
 		});
 	} catch (err: any) {
