@@ -26,8 +26,8 @@ export async function POST(req: NextRequest) {
 		const generatedImage = typeof body?.generatedImage === 'string' ? (body.generatedImage as string) : '';
 		const tier: Tier | undefined = (body?.tier as Tier) || undefined;
 
-		// Validate presence of target reference (either token/description or explicit target payload)
-		if (!prompt || (!targetDescription && !targetToken && !targetObj)) {
+		// Validate presence of target reference (either token/description, explicit target payload, or both images for daily mode)
+		if (!prompt || (!targetDescription && !targetToken && !targetObj && !(targetImage && generatedImage))) {
 			return NextResponse.json({ error: 'Missing prompt or target reference' }, { status: 400 });
 		}
 		// If explicit target payload provided, ensure it contains required metadata
@@ -97,9 +97,15 @@ export async function POST(req: NextRequest) {
 			let vertexError: string | null = null;
 
 			try {
+				// eslint-disable-next-line no-console
+				console.log('[score] Daily mode: both images present, computing embeddings...');
 				vectors = await embedImagesBase64([targetImage, generatedImage]);
+				// eslint-disable-next-line no-console
+				console.log('[score] Embeddings computed:', vectors.length, 'vectors');
 			} catch (e: any) {
 				vertexError = e?.message || 'Vertex failed';
+				// eslint-disable-next-line no-console
+				console.error('[score] Vertex embedding error:', vertexError);
 			}
 
 			// === FORCE IMAGE-EMBEDDING MODE (NO FALLBACK) ===
@@ -108,6 +114,8 @@ export async function POST(req: NextRequest) {
 				const similarity = cosineSimilarity(v1, v2);
 				const similarity01 = Math.max(0, Math.min(1, (similarity + 1) / 2));
 				let aiScore = Math.round(similarity01 * 100);
+				// eslint-disable-next-line no-console
+				console.log('[score] Image similarity:', similarity01, '→ score:', aiScore);
 				// Easy tier: rely on model similarity; apply only small optional boosts and capped penalty. No handcrafted strict rules.
 				if (targetMeta?.tier === 'easy') {
 					const lowerPrompt = String(prompt || '').toLowerCase();
@@ -186,7 +194,9 @@ export async function POST(req: NextRequest) {
 			}
 
 			// === ONLY FALLBACK IF VERTEX TRULY FAILED ===
-			const simJ = jaccardSimilarity(prompt, targetDescription);
+			// Use targetMeta label/goldPrompt as fallback description for daily challenges
+			const fallbackDescription = targetDescription || targetMeta?.goldPrompt || targetMeta?.label || '';
+			const simJ = jaccardSimilarity(prompt, fallbackDescription);
 			let aiScore: number;
 			if (targetMeta?.tier === 'easy') {
 				// Easy tier: no handcrafted keyword bonuses; small optional boosts; capped penalty
@@ -268,7 +278,9 @@ export async function POST(req: NextRequest) {
 
 		// Fallback similarity if embeddings unavailable
 		if (similarity01 === null) {
-			similarity01 = jaccardSimilarity(prompt, targetDescription);
+			// Use targetMeta label/goldPrompt as fallback description for daily challenges
+			const fallbackDescription = targetDescription || targetMeta?.goldPrompt || targetMeta?.label || '';
+			similarity01 = jaccardSimilarity(prompt, fallbackDescription);
 			scoringMode = 'jaccard-fallback';
 		}
 

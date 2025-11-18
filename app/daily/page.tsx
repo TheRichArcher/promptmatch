@@ -82,9 +82,16 @@ export default function DailyChallenge() {
 				// Mock rank for now (would come from backend in real implementation)
 				setRank(Math.floor(Math.random() * 20) + 1);
 			} else {
+				// Log scoring error for debugging
+				console.error('Scoring failed:', {
+					status: scoreRes.status,
+					statusText: scoreRes.statusText,
+					result: scoreResult,
+				});
 				// If scoring fails, show a default score of 0
 				setScore(0);
 				setRank(null);
+				setError(scoreResult.error || 'Failed to score image');
 			}
 			setSubmitted(true);
 		} catch (err: any) {
