@@ -62,11 +62,13 @@ export default function DailyChallenge() {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
+					'x-daily-challenge': 'true', // Bypass size limit for daily challenges
 				},
 				body: JSON.stringify({
 					prompt: prompt.trim(),
 					targetImage: data.targetImage,
 					generatedImage: imageUrl,
+					isDailyChallenge: true, // Additional flag in body
 					targetMeta: {
 						label: `Daily Challenge Day ${data.day}`,
 						tier: 'medium',

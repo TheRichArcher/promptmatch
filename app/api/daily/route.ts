@@ -121,6 +121,7 @@ export async function GET() {
 		return NextResponse.json({
 			day,
 			targetImage: imageUrl.imageUrl,
+			isDailyChallenge: true, // Flag to identify daily challenge images
 			shareUrl: 'https://promptmatch.onrender.com/daily',
 		});
 	} catch (err: any) {

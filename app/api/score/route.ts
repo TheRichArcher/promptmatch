@@ -25,6 +25,10 @@ export async function POST(req: NextRequest) {
 		const targetImage = typeof body?.targetImage === 'string' ? (body.targetImage as string) : '';
 		const generatedImage = typeof body?.generatedImage === 'string' ? (body.generatedImage as string) : '';
 		const tier: Tier | undefined = (body?.tier as Tier) || undefined;
+		// Check if this is a daily challenge (via header or body flag)
+		const isDailyChallenge = req.headers.get('x-daily-challenge') === 'true' 
+			|| body?.isDailyChallenge === true
+			|| (targetMeta?.label && targetMeta.label.includes('Daily Challenge'));
 
 		// Validate presence of target reference (either token/description, explicit target payload, or both images for daily mode)
 		if (!prompt || (!targetDescription && !targetToken && !targetObj && !(targetImage && generatedImage))) {
@@ -77,16 +81,19 @@ export async function POST(req: NextRequest) {
 		})();
 
 		// Server-side size validation (<= 1.5 MB each)
-		if (targetImage) {
-			const size = dataUrlApproxBytes(targetImage);
-			if (size > 1.5 * 1024 * 1024) {
-				return NextResponse.json({ error: 'Target image too large (max 1.5MB)' }, { status: 400 });
+		// Skip size validation for daily challenges - they use high-res pre-validated images
+		if (!isDailyChallenge) {
+			if (targetImage) {
+				const size = dataUrlApproxBytes(targetImage);
+				if (size > 1.5 * 1024 * 1024) {
+					return NextResponse.json({ error: 'Target image too large (max 1.5MB)' }, { status: 400 });
+				}
 			}
-		}
-		if (generatedImage) {
-			const size = dataUrlApproxBytes(generatedImage);
-			if (size > 1.5 * 1024 * 1024) {
-				return NextResponse.json({ error: 'Generated image too large (max 1.5MB)' }, { status: 400 });
+			if (generatedImage) {
+				const size = dataUrlApproxBytes(generatedImage);
+				if (size > 1.5 * 1024 * 1024) {
+					return NextResponse.json({ error: 'Generated image too large (max 1.5MB)' }, { status: 400 });
+				}
 			}
 		}
 
