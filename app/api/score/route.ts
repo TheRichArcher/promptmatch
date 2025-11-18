@@ -120,13 +120,22 @@ export async function POST(req: NextRequest) {
 				const [v1, v2] = vectors;
 				const similarity = cosineSimilarity(v1, v2);
 				// Normalize cosine similarity [-1, 1] to [0, 1]
-				// Compress low similarities aggressively so unrelated images score 0-10
-				// Power curve: similarity^3 compresses low values very aggressively
-				// Example: cosine 0.1 → normalized 0.55 → 0.55^3 = 0.17 → score 17 (still high but better)
-				//          cosine 0.0 → normalized 0.50 → 0.50^3 = 0.13 → score 13
-				//          cosine -0.2 → normalized 0.40 → 0.40^3 = 0.06 → score 6 ✓
 				const normalized = Math.max(0, Math.min(1, (similarity + 1) / 2));
-				const similarity01 = Math.pow(normalized, 3); // Very aggressive compression for low similarities
+				
+				// Aggressively compress low similarities so unrelated images score 0-10
+				// Use threshold-based compression: anything below 0.8 normalized gets heavily compressed
+				let similarity01: number;
+				if (normalized < 0.8) {
+					// Low similarities: compress very aggressively with power of 6
+					// Example: normalized 0.5 → (0.5/0.8)^6 * 0.1 = 0.002 → score 0
+					//          normalized 0.6 → (0.6/0.8)^6 * 0.1 = 0.018 → score 2
+					//          normalized 0.7 → (0.7/0.8)^6 * 0.1 = 0.059 → score 6
+					//          normalized 0.79 → (0.79/0.8)^6 * 0.1 = 0.092 → score 9 ✓
+					similarity01 = Math.pow(normalized / 0.8, 6) * 0.1; // Map [0, 0.8] to [0, 0.1]
+				} else {
+					// Higher similarities: use linear mapping from [0.8, 1.0] to [0.1, 1.0]
+					similarity01 = 0.1 + ((normalized - 0.8) / 0.2) * 0.9;
+				}
 				let aiScore = Math.round(similarity01 * 100);
 				// eslint-disable-next-line no-console
 				console.log('[score] Image similarity:', similarity01, '→ score:', aiScore);
