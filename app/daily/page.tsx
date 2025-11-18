@@ -81,11 +81,12 @@ export default function DailyChallenge() {
 				setScore(finalScore);
 				// Mock rank for now (would come from backend in real implementation)
 				setRank(Math.floor(Math.random() * 20) + 1);
-				setSubmitted(true);
 			} else {
-				// If scoring fails, still show the image but no score
-				setSubmitted(true);
+				// If scoring fails, show a default score of 0
+				setScore(0);
+				setRank(null);
 			}
+			setSubmitted(true);
 		} catch (err: any) {
 			setError(err?.message || 'Failed to generate image');
 			console.error('Generation error:', err);
@@ -126,11 +127,11 @@ export default function DailyChallenge() {
 				{/* Header */}
 				<div className="text-center mb-8">
 					<h1 className="text-5xl font-bold text-gray-900 mb-2">PromptMatch Daily</h1>
-					<div className="flex items-center justify-center gap-2 mb-3">
+					<div className="flex items-center justify-center gap-3 mb-3">
 						<p className="text-xl text-gray-600">One prompt. Best score wins.</p>
 						<button
 							onClick={() => setShowHowToPlay(true)}
-							className="text-sm text-gray-500 hover:text-gray-700 underline ml-2"
+							className="text-sm text-purple-600 hover:text-purple-700 underline font-medium"
 						>
 							How to play
 						</button>
