@@ -88,10 +88,10 @@ export default function DailyChallenge() {
 								<div className="w-2 h-2 bg-blue-500 rounded-full"></div>
 								<p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Target Image</p>
 							</div>
-							<div className="rounded-xl shadow-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
+							<div className="rounded-xl shadow-lg overflow-hidden border-2 border-gray-200 bg-gray-50 aspect-square">
 								<img 
 									src={data.targetImage} 
-									className="w-full h-auto object-cover" 
+									className="w-full h-full object-cover" 
 									alt="Daily challenge target" 
 								/>
 							</div>
@@ -101,11 +101,11 @@ export default function DailyChallenge() {
 								<div className="w-2 h-2 bg-purple-500 rounded-full"></div>
 								<p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Your Image</p>
 							</div>
-							<div className="rounded-xl shadow-lg overflow-hidden border-2 border-gray-200 bg-gray-50 min-h-[300px] flex items-center justify-center">
+							<div className="rounded-xl shadow-lg overflow-hidden border-2 border-gray-200 bg-gray-50 aspect-square flex items-center justify-center">
 								{generatedImage ? (
 									<img 
 										src={generatedImage} 
-										className="w-full h-auto object-cover" 
+										className="w-full h-full object-cover" 
 										alt="Generated from your prompt" 
 									/>
 								) : (
