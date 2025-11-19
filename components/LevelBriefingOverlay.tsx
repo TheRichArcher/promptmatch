@@ -76,7 +76,7 @@ const BRIEFINGS: Record<
 			'Now add precision:',
 			'Negative: --no blur, scratches, text',
 			'Aspect ratio: --ar 16:9 / 9:16 / 1:1',
-			'Weighting: (masterpiece), ((detailed))',
+			'Emphasis: Use keywords like "masterpiece", "highly detailed"',
 			'Quality: masterpiece, ultra-detailed',
 		],
 		examples: [
@@ -94,43 +94,47 @@ export default function LevelBriefingOverlay({ level }: { level: string }) {
 		<motion.div
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
-			className="fixed inset-0 bg-gradient-to-br from-indigo-600 to-purple-700 z-50 flex items-center justify-center p-6"
+			className="fixed inset-0 bg-gradient-to-br from-indigo-600 to-purple-700 z-50 flex items-center justify-center p-4 md:p-6 overflow-hidden"
 		>
-			<div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl">
-				<h2 className="text-3xl font-bold text-indigo-700 mb-2">{data.title}</h2>
-				<p className="text-sm text-gray-600 mb-6">{data.desc}</p>
+			<div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl max-h-[90vh] flex flex-col">
+				<div className="overflow-y-auto flex-1 -mx-2 px-2 custom-scrollbar">
+					<h2 className="text-2xl md:text-3xl font-bold text-indigo-700 mb-2">{data.title}</h2>
+					<p className="text-sm text-gray-600 mb-6">{data.desc}</p>
 
-				<div className="space-y-3 mb-6">
-					{data.focus.map((item, i) => (
-						<div key={i} className="flex items-center gap-2">
-							<div className="w-2 h-2 bg-indigo-500 rounded-full" />
-							<span className="text-gray-700">{item}</span>
-						</div>
-					))}
-				</div>
-
-				<div className="bg-gray-50 p-4 rounded-xl mb-4">
-					<p className="text-sm font-semibold text-gray-700 mb-2">Try these:</p>
-					<div className="flex flex-wrap gap-2">
-						{data.examples.map((ex, i) => (
-							<code key={i} className="bg-white px-3 py-1 rounded-lg text-sm text-indigo-600">
-								"{ex}"
-							</code>
+					<div className="space-y-3 mb-6">
+						{data.focus.map((item, i) => (
+							<div key={i} className="flex items-start gap-2">
+								<div className="w-2 h-2 bg-indigo-500 rounded-full mt-1.5 flex-shrink-0" />
+								<span className="text-gray-700">{item}</span>
+							</div>
 						))}
 					</div>
+
+					<div className="bg-gray-50 p-4 rounded-xl mb-4">
+						<p className="text-sm font-semibold text-gray-700 mb-2">Try these:</p>
+						<div className="flex flex-wrap gap-2">
+							{data.examples.map((ex, i) => (
+								<code key={i} className="bg-white px-3 py-1 rounded-lg text-sm text-indigo-600 block w-full">
+									"{ex}"
+								</code>
+							))}
+						</div>
+					</div>
+
+					<p className="text-xs italic text-indigo-600 mb-6">💡 {data.tip}</p>
 				</div>
 
-				<p className="text-xs italic text-indigo-600 mb-6">💡 {data.tip}</p>
-
-				<div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-					<motion.div
-						className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
-						initial={{ width: 0 }}
-						animate={{ width: '100%' }}
-						transition={{ duration: 30, ease: 'linear' }}
-					/>
+				<div className="mt-4 flex-shrink-0">
+					<div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+						<motion.div
+							className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
+							initial={{ width: 0 }}
+							animate={{ width: '100%' }}
+							transition={{ duration: 30, ease: 'linear' }}
+						/>
+					</div>
+					<p className="text-center text-sm text-gray-500 mt-2">Preparing your 5 new images...</p>
 				</div>
-				<p className="text-center text-sm text-gray-500 mt-2">Preparing your 5 new images...</p>
 			</div>
 		</motion.div>
 	);

@@ -71,8 +71,8 @@ export default function HomePage() {
 					<button onClick={() => router.push('/train')} className="btn text-lg px-8">
 						Start Training
 					</button>
-					<button disabled className="btn bg-gray-900 hover:bg-black text-lg px-8">
-						Daily Challenge (coming soon)
+					<button onClick={() => router.push('/daily')} className="btn bg-purple-600 hover:bg-purple-700 text-lg px-8">
+						Daily Challenge
 					</button>
 				</div>
 			</div>
