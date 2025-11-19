@@ -23,3 +23,7 @@ pnpm-debug.log*
 
 
 creds.json
+
+# Generated Reports
+PROJECT_REPORT.md
+QUICK_SUMMARY.md
