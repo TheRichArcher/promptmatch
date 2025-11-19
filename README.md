@@ -69,4 +69,9 @@ The `/api/generate` route is a safe stub. Wire it to Gemini 2.5 Flash Image (Nan
 
 MIT — for the prototype scaffolding code. Make sure your usage of Gemini and any datasets complies with their terms.
 
+## Troubleshooting
+
+### Git Clone 500 Error
+If you encounter a 500 Internal Server Error when cloning this repository, it is usually due to a temporary GitHub outage or because the repository is private. Check [GitHub Status](https://www.githubstatus.com/) or ensure you have correct access permissions.
+
 
