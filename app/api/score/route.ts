@@ -122,36 +122,24 @@ export async function POST(req: NextRequest) {
 				// Normalize cosine similarity [-1, 1] to [0, 1]
 				const normalized = Math.max(0, Math.min(1, (similarity + 1) / 2));
 				
-				// Aggressively compress low similarities so unrelated images score 0-10
-				// Expand high similarities so near-perfect matches score 99-100
+				// Simplified scoring curve based on user feedback:
+				// "If it's 93% similar, give me a 93."
+				// We keep a steep drop-off below 75% to penalize unrelated images.
 				let similarity01: number;
-				if (normalized < 0.75) {
-					// Low similarities: compress very aggressively
-					// Map [0, 0.75] to [0, 0.15]
-					similarity01 = Math.pow(normalized / 0.75, 5) * 0.15;
+				
+				if (normalized >= 0.75) {
+					// Linear mapping for good matches: 0.93 -> 0.93 score
+					similarity01 = normalized;
 				} else {
-					// Higher similarities: use piecewise mapping to expand top end
-					// Map [0.75, 1.0] to [0.15, 1.0]
-					if (normalized >= 0.95) {
-						// Top 5%: map [0.95, 1.0] to [0.85, 1.0] - very aggressive expansion
-						const topRange = (normalized - 0.95) / 0.05; // [0, 1] for [0.95, 1.0]
-						similarity01 = 0.85 + Math.pow(topRange, 0.3) * 0.15; // Expand top end
-					} else {
-						// Mid-High range: map [0.75, 0.95] to [0.15, 0.85]
-						// This gives a 0.90 similarity a score of ~65-70 instead of 50-60
-						const midRange = (normalized - 0.75) / 0.20; // [0, 1] for [0.75, 0.95]
-						similarity01 = 0.15 + Math.pow(midRange, 0.65) * 0.70;
-					}
-					// Examples (Approx):
-					// normalized 0.75 → score 15
-					// normalized 0.85 → score ~50
-					// normalized 0.90 → score ~72
-					// normalized 0.95 → score 85
-					// normalized 0.99 → score 99
+					// Steep drop-off for poor matches
+					// Example: 0.60 -> (0.6/0.75)^4 * 0.75 = 0.30 (Score 30)
+					// Example: 0.50 -> (0.5/0.75)^4 * 0.75 = 0.14 (Score 14)
+					similarity01 = Math.pow(normalized / 0.75, 4) * 0.75;
 				}
+				
 				let aiScore = Math.round(similarity01 * 100);
 				// eslint-disable-next-line no-console
-				console.log('[score] Image similarity:', similarity01, '→ score:', aiScore);
+				console.log('[score] Image similarity:', normalized, '→ score:', aiScore);
 				
 				// Medium/Hard/Advanced/Expert/Daily tier: use balanced scoring
 				const currentTier = targetMeta?.tier ?? tier;

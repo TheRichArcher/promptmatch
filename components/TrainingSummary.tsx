@@ -53,13 +53,7 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 	const nextTier = getNextTier(currentTier);
 	const tierLabel = getTierLabel(currentTier);
 	const nextTierLabel = getTierLabel(nextTier);
-	const BRIEFING_MAP: Record<Tier, 'basics' | 'details' | 'scenes' | 'style' | 'precision'> = {
-		easy: 'basics',
-		medium: 'details',
-		hard: 'scenes',
-		advanced: 'style',
-		expert: 'precision',
-	};
+	const isLastLevel = currentTier === 'expert';
 
 	useEffect(() => {
 		const timer = setTimeout(() => setShowConfetti(false), 5000);
@@ -210,29 +204,37 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 						New Training Set
 						<span className="block text-xs opacity-90">Practice {tierLabel} again</span>
 					</button>
-					<button
-						onClick={handleNextTier}
-						disabled={isAdvancing}
-						aria-disabled={isAdvancing}
-						aria-busy={isAdvancing}
-						className="bg-white text-gray-800 px-8 py-3 rounded-xl font-semibold border border-gray-300 hover:bg-gray-50 transition shadow relative disabled:opacity-75 w-56"
-					>
-						{isAdvancing ? (
-							<>
-								<span className="inline-block h-4 w-4 align-[-2px] rounded-full border-2 border-gray-400 border-t-transparent animate-spin mr-2" aria-hidden="true" />
-								<span role="status" aria-live="polite">Loading next level…</span>
-							</>
-						) : (
-							<>
-								Next Level – {nextTierLabel}
-							</>
-						)}
-					</button>
+					{!isLastLevel ? (
+						<button
+							onClick={handleNextTier}
+							disabled={isAdvancing}
+							aria-disabled={isAdvancing}
+							aria-busy={isAdvancing}
+							className="bg-white text-gray-800 px-8 py-3 rounded-xl font-semibold border border-gray-300 hover:bg-gray-50 transition shadow relative disabled:opacity-75 w-56"
+						>
+							{isAdvancing ? (
+								<>
+									<span className="inline-block h-4 w-4 align-[-2px] rounded-full border-2 border-gray-400 border-t-transparent animate-spin mr-2" aria-hidden="true" />
+									<span role="status" aria-live="polite">Loading next level…</span>
+								</>
+							) : (
+								<>Next Level – {nextTierLabel}</>
+							)}
+						</button>
+					) : null}
 				</div>
 
-				<p className="text-sm text-gray-500 mt-6">Next up: <strong className="text-indigo-600">{nextTierLabel}</strong> – ready to level up?</p>
+				{isLastLevel ? (
+					<p className="text-lg text-indigo-600 font-bold mt-6">You’ve mastered all levels!</p>
+				) : (
+					<p className="text-sm text-gray-500 mt-6">
+						Next up: <strong className="text-indigo-600">{nextTierLabel}</strong> – ready to level up?
+					</p>
+				)}
 				<p className="text-center text-sm text-gray-500 mt-2">
-					<a href="/progress" className="underline">View full progress →</a>
+					<a href="/progress" className="underline">
+						View full progress →
+					</a>
 				</p>
 			</div>
 		</div>
