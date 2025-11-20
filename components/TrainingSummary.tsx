@@ -231,9 +231,12 @@ export default function TrainingSummary({ scores, feedback, onNewSet, onNextTier
 						Next up: <strong className="text-indigo-600">{nextTierLabel}</strong> – ready to level up?
 					</p>
 				)}
-				<p className="text-center text-sm text-gray-500 mt-2">
-					<a href="/progress" className="underline">
-						View full progress →
+				<p className="text-center text-sm text-gray-500 mt-4 space-x-6">
+					<a href="/progress" className="underline hover:text-gray-800 transition-colors">
+						View full progress
+					</a>
+					<a href="/daily" className="underline text-purple-600 hover:text-purple-800 font-medium transition-colors">
+						Play Daily Challenge
 					</a>
 				</p>
 			</div>
