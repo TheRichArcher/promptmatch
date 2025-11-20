@@ -125,32 +125,29 @@ export async function POST(req: NextRequest) {
 				// Aggressively compress low similarities so unrelated images score 0-10
 				// Expand high similarities so near-perfect matches score 99-100
 				let similarity01: number;
-				if (normalized < 0.8) {
-					// Low similarities: compress very aggressively with power of 6
-					// Example: normalized 0.5 → (0.5/0.8)^6 * 0.1 = 0.002 → score 0
-					//          normalized 0.6 → (0.6/0.8)^6 * 0.1 = 0.018 → score 2
-					//          normalized 0.7 → (0.7/0.8)^6 * 0.1 = 0.059 → score 6
-					//          normalized 0.79 → (0.79/0.8)^6 * 0.1 = 0.092 → score 9 ✓
-					similarity01 = Math.pow(normalized / 0.8, 6) * 0.1; // Map [0, 0.8] to [0, 0.1]
+				if (normalized < 0.75) {
+					// Low similarities: compress very aggressively
+					// Map [0, 0.75] to [0, 0.15]
+					similarity01 = Math.pow(normalized / 0.75, 5) * 0.15;
 				} else {
 					// Higher similarities: use piecewise mapping to expand top end
-					// Map [0.8, 1.0] to [0.1, 1.0] with very aggressive expansion for top 5%
+					// Map [0.75, 1.0] to [0.15, 1.0]
 					if (normalized >= 0.95) {
 						// Top 5%: map [0.95, 1.0] to [0.85, 1.0] - very aggressive expansion
 						const topRange = (normalized - 0.95) / 0.05; // [0, 1] for [0.95, 1.0]
 						similarity01 = 0.85 + Math.pow(topRange, 0.3) * 0.15; // Expand top end
 					} else {
-						// Lower high range: map [0.8, 0.95] to [0.1, 0.85]
-						const midRange = (normalized - 0.8) / 0.15; // [0, 1] for [0.8, 0.95]
-						similarity01 = 0.1 + Math.pow(midRange, 0.7) * 0.75;
+						// Mid-High range: map [0.75, 0.95] to [0.15, 0.85]
+						// This gives a 0.90 similarity a score of ~65-70 instead of 50-60
+						const midRange = (normalized - 0.75) / 0.20; // [0, 1] for [0.75, 0.95]
+						similarity01 = 0.15 + Math.pow(midRange, 0.65) * 0.70;
 					}
-					// Examples: normalized 0.8 → score 10
-					//           normalized 0.9 → score 50
-					//           normalized 0.95 → score 85
-					//           normalized 0.98 → score 97
-					//           normalized 0.984 → score 98-99
-					//           normalized 0.99 → score 99
-					//           normalized 1.0 → score 100
+					// Examples (Approx):
+					// normalized 0.75 → score 15
+					// normalized 0.85 → score ~50
+					// normalized 0.90 → score ~72
+					// normalized 0.95 → score 85
+					// normalized 0.99 → score 99
 				}
 				let aiScore = Math.round(similarity01 * 100);
 				// eslint-disable-next-line no-console
